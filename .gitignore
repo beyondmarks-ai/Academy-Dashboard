@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and caches
+*.log
+tsconfig.tsbuildinfo
+.vercel/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Original local assets (optimized copies are in public/)
+WhatsApp Image 2026-07-10 at 11.37.13 AM.jpeg
+space boy developer.svg
+Ringing Bell Loop.svg
