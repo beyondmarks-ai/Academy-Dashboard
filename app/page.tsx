@@ -6,16 +6,59 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
+import {
+  completeOnboarding,
+  createProject as createApiProject,
+  getApiAccess,
+  getNotifications,
+  getProfile,
+  getProject as getApiProject,
+  getProjects,
+  markAllNotificationsRead,
+  markNotificationRead,
+  requestApiAccess,
+  type AcademyNotification,
+  type AcademyProject,
+  type AcademySubscription,
+} from "@/lib/academy-api";
+import { signIn } from "@/lib/azure-auth";
 
 type AuthMode = "login" | "signup" | null;
-type NotificationItem = { id: number; title: string; message: string; fullMessage: string; time: string; category: string; unread: boolean };
-type ProjectItem = { id: number; name: string; description: string; status: "working" | "finished"; githubUrl: string; readme: string; updated: string };
+type NotificationItem = { id: number | string; title: string; message: string; fullMessage: string; time: string; category: string; unread: boolean };
+type ProjectItem = { id: number | string; name: string; description: string; status: "working" | "finished"; githubUrl: string; readme: string; updated: string };
+
+function projectFromApi(project: AcademyProject): ProjectItem {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    status: project.status,
+    githubUrl: project.github_url || "",
+    readme: project.readme || `# ${project.name}\n\nOpen this project to load its README.md.`,
+    updated: new Date(project.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }),
+  };
+}
+
+function notificationFromApi(notification: AcademyNotification): NotificationItem {
+  return {
+    id: notification.id,
+    title: notification.title,
+    message: notification.message,
+    fullMessage: notification.message,
+    category: notification.category,
+    unread: notification.unread,
+    time: new Date(notification.created_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }),
+  };
+}
 
 export default function Dashboard() {
   const [authMode, setAuthMode] = useState<AuthMode>(null);
   const [openingMode, setOpeningMode] = useState<AuthMode>(null);
   const [dashboardReady, setDashboardReady] = useState(false);
   const [userName, setUserName] = useState("Student");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authPending, setAuthPending] = useState(false);
+  const [authError, setAuthError] = useState("");
   const openingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const beginAuth = (mode: Exclude<AuthMode, null>) => {
@@ -35,23 +78,30 @@ export default function Dashboard() {
     setAuthMode(null);
   };
 
-  const handleAuthSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    if (authMode === "signup") {
-      const confirmInput = event.currentTarget.elements.namedItem("confirmPassword") as HTMLInputElement;
-      if (formData.get("password") !== formData.get("confirmPassword")) {
-        confirmInput.setCustomValidity("Passwords do not match");
-        confirmInput.reportValidity();
-        return;
-      }
-      confirmInput.setCustomValidity("");
+    setAuthPending(true);
+    setAuthError("");
+    try {
+      const loginHint = String(formData.get(authMode === "signup" ? "email" : "username") || "").trim();
+      await signIn(loginHint);
+      const profile = authMode === "signup"
+        ? await completeOnboarding({
+            fullName: String(formData.get("name") || "").trim(),
+            username: String(formData.get("username") || "").trim(),
+            admissionId: String(formData.get("admissionId") || "").trim(),
+          })
+        : await getProfile();
+      setUserName(profile.full_name || profile.username || "Student");
+      setAuthenticated(true);
+      closeAuth();
+      setDashboardReady(true);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Secure sign-in could not be completed.");
+    } finally {
+      setAuthPending(false);
     }
-
-    const accountName = authMode === "signup" ? formData.get("name") : formData.get("username");
-    setUserName(String(accountName || "Student").trim());
-    closeAuth();
-    setDashboardReady(true);
   };
 
   const enterDashboard = () => {
@@ -74,7 +124,7 @@ export default function Dashboard() {
   const authActive = Boolean(openingMode || authMode);
 
   if (dashboardReady) {
-    return <DashboardDestination userName={userName} />;
+    return <DashboardDestination userName={userName} authenticated={authenticated} />;
   }
 
   return (
@@ -132,7 +182,7 @@ export default function Dashboard() {
             <button className="modal-close" type="button" aria-label="Close" onClick={closeAuth}>×</button>
             <span className="modal-kicker">BEYOND MARKS AI ACADEMY</span>
             <h2 id="auth-title">{authMode === "login" ? "Welcome back" : "Begin your journey"}</h2>
-            <p>{authMode === "login" ? "Log in to continue your learning journey." : "Create your account and go beyond marks."}</p>
+            <p>{authMode === "login" ? "Continue securely with your Academy Microsoft account." : "Verify your invitation, then link it to your secure Microsoft account."}</p>
 
             <form onSubmit={handleAuthSubmit}>
               {authMode === "signup" && (
@@ -162,25 +212,9 @@ export default function Dashboard() {
                   <input type="email" name="email" placeholder="you@example.com" autoComplete="email" required />
                 </label>
               )}
-              <label>
-                <span>Password</span>
-                <input type="password" name="password" placeholder="Enter your password" autoComplete={authMode === "login" ? "current-password" : "new-password"} required />
-              </label>
-              {authMode === "signup" && (
-                <label>
-                  <span>Confirm password</span>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    placeholder="Re-enter your password"
-                    autoComplete="new-password"
-                    onInput={(event) => event.currentTarget.setCustomValidity("")}
-                    required
-                  />
-                </label>
-              )}
-              {authMode === "login" && <button className="forgot-password" type="button">Forgot password?</button>}
-              <button className="modal-submit" type="submit">{authMode === "login" ? "Log in" : "Create account"}</button>
+              <p className="auth-security-note">Your password is entered only on Microsoft&apos;s secure sign-in window and is never sent to Beyond Marks.</p>
+              {authError && <p className="auth-form-error" role="alert">{authError}</p>}
+              <button className="modal-submit" type="submit" disabled={authPending}>{authPending ? "Opening secure sign-in…" : authMode === "login" ? "Continue with Microsoft" : "Verify & create account"}</button>
             </form>
 
             <div className="modal-switch">
@@ -197,13 +231,14 @@ export default function Dashboard() {
   );
 }
 
-function DashboardDestination({ userName }: { userName: string }) {
+function DashboardDestination({ userName, authenticated }: { userName: string; authenticated: boolean }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeItem, setActiveItem] = useState("Overview");
   const [activeApiOption, setActiveApiOption] = useState<"request" | "accessed" | null>(null);
   const [apiRequestOpen, setApiRequestOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [apiSubscription, setApiSubscription] = useState<AcademySubscription | null>(null);
   const [selectedApiModels, setSelectedApiModels] = useState<string[]>([]);
   const [customApiRequirement, setCustomApiRequirement] = useState("");
   const [projectFilter, setProjectFilter] = useState<"working" | "finished">("working");
@@ -267,6 +302,34 @@ Finished and ready for integration.`,
     { id: 2, title: "Account connected", message: `Signed in as ${userName}.`, fullMessage: `Your learner account has been connected successfully. You are currently signed in as ${userName}. If you do not recognize this activity, please contact the academy administrator and update your password immediately.`, time: "Today", category: "Account alert", unread: true },
   ]);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
+  const [syncError, setSyncError] = useState("");
+
+  useEffect(() => {
+    if (!authenticated) return;
+    let active = true;
+    Promise.all([getProjects(), getNotifications(), getApiAccess()])
+      .then(([projectData, notificationData, apiAccess]) => {
+        if (!active) return;
+        setProjects(projectData.map(projectFromApi));
+        setNotifications(notificationData.data.map(notificationFromApi));
+        setApiSubscription(apiAccess.subscriptions[0] || null);
+        setSyncError("");
+      })
+      .catch((error) => {
+        if (active) setSyncError(error instanceof Error ? error.message : "Dashboard data could not be synchronized.");
+      });
+    return () => { active = false; };
+  }, [authenticated]);
+
+  const openProject = async (project: ProjectItem) => {
+    setSelectedProject(project);
+    if (!authenticated || typeof project.id !== "string") return;
+    try {
+      setSelectedProject(projectFromApi(await getApiProject(project.id)));
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "The project README could not be loaded.");
+    }
+  };
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -288,6 +351,7 @@ Finished and ready for integration.`,
   return (
     <section className={`dashboard-screen ${sidebarOpen ? "sidebar-is-open" : ""}`}>
       <div className="dashboard-destination-bg" />
+      {syncError && <div className="dashboard-sync-error" role="status">{syncError}</div>}
       <button
         className={`hamburger-button ${sidebarOpen ? "is-open" : ""}`}
         type="button"
@@ -367,7 +431,7 @@ Finished and ready for integration.`,
         </div>
         <div className="project-list">
           {projects.filter((project) => project.status === projectFilter).map((project) => (
-            <article key={project.id} className="project-card" tabIndex={0} role="button" onClick={() => setSelectedProject(project)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedProject(project); }}>
+            <article key={project.id} className="project-card" tabIndex={0} role="button" onClick={() => void openProject(project)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") void openProject(project); }}>
               <div className="project-card-topline">
                 <span className={`project-status-dot ${project.status}`} />
                 <small>{project.status === "working" ? "Currently working on" : "Finished project"}</small>
@@ -381,7 +445,7 @@ Finished and ready for integration.`,
                 ) : (
                   <button type="button" disabled title="Add a GitHub URL to enable this link"><GithubIcon /> Not linked</button>
                 )}
-                <button type="button" onClick={(event) => { event.stopPropagation(); setSelectedProject(project); }}><ReadmeIcon /> README.md</button>
+                <button type="button" onClick={(event) => { event.stopPropagation(); void openProject(project); }}><ReadmeIcon /> README.md</button>
               </div>
             </article>
           ))}
@@ -398,15 +462,17 @@ Finished and ready for integration.`,
             <p>View and manage your approved model credential.</p>
             <article className="accessed-key-card">
               <div className="accessed-key-topline">
-                <span className="accessed-key-provider" aria-hidden="true">AI</span>
+                <span className="accessed-key-provider" aria-hidden="true">{apiSubscription?.provider?.slice(0, 2).toUpperCase() || "AI"}</span>
                 <div>
-                  <strong id="accessed-key-name">OpenAI 4o Model API Key</strong>
-                  <small><i /> Active</small>
+                  <strong id="accessed-key-name">{apiSubscription?.product_name || (authenticated ? "No approved API key" : "Demo API credential")}</strong>
+                  <small><i /> {apiSubscription?.status || (authenticated ? "No access" : "Demo mode")}</small>
                 </div>
               </div>
               <div className="accessed-key-value">
                 <code aria-label={apiKeyVisible ? "Visible API key" : "Hidden API key"}>
-                  {apiKeyVisible ? "sk-proj-BM4o-8294-7613-0582-4479" : "sk-proj-BM4o-••••-••••-••••-4479"}
+                  {apiKeyVisible
+                    ? apiSubscription ? `Managed credential ending ${apiSubscription.key_last_four || "unknown"}` : authenticated ? "No active credential" : "Demo credential ending 4479"
+                    : `•••• •••• •••• ${apiSubscription?.key_last_four || (authenticated ? "—" : "4479")}`}
                 </code>
                 <button
                   type="button"
@@ -418,9 +484,12 @@ Finished and ready for integration.`,
                   <VisibilityIcon hidden={apiKeyVisible} />
                 </button>
               </div>
-              <div className="accessed-key-meta"><span>Created 22 Jul 2026</span><span>Key ending 4479</span></div>
+              <div className="accessed-key-meta">
+                <span>{apiSubscription ? `Created ${new Date(apiSubscription.created_at).toLocaleDateString()}` : authenticated ? "Awaiting approval" : "Demo only"}</span>
+                <span>{apiSubscription?.key_last_four ? `Key ending ${apiSubscription.key_last_four}` : "No secret exposed"}</span>
+              </div>
             </article>
-            <div className="api-key-security-note"><ApiKeyIcon type="shield" /><p><strong>Keep this key private</strong><span>Never expose it in frontend code or public repositories.</span></p></div>
+            <div className="api-key-security-note"><ApiKeyIcon type="shield" /><p><strong>Secrets stay protected</strong><span>The dashboard stores and returns only credential metadata and the last four characters.</span></p></div>
             <button className="api-key-modal-done" type="button" onClick={() => setApiKeyModalOpen(false)}>Done</button>
           </section>
         </div>
@@ -439,15 +508,23 @@ Finished and ready for integration.`,
               const status = String(data.get("projectStatus")) as "working" | "finished";
               const readmeFile = data.get("readmeFile");
               if (!(readmeFile instanceof File) || !readmeFile.name.toLowerCase().endsWith(".md")) return;
-              const project: ProjectItem = {
-                id: Date.now(),
+              const input = {
                 name: String(data.get("projectName") || "Untitled project").trim(),
                 description: String(data.get("projectDescription") || "No description provided.").trim(),
                 status,
                 githubUrl: String(data.get("githubUrl") || "").trim(),
                 readme: (await readmeFile.text()).trim() || "# Untitled project\n\nREADME details coming soon.",
-                updated: status === "finished" ? "Completed just now" : "Added just now",
               };
+              let project: ProjectItem;
+              try {
+                project = authenticated
+                  ? projectFromApi({ ...(await createApiProject(input)), readme: input.readme })
+                  : { id: Date.now(), ...input, updated: status === "finished" ? "Completed just now" : "Added just now" };
+                setSyncError("");
+              } catch (error) {
+                setSyncError(error instanceof Error ? error.message : "The project could not be saved.");
+                return;
+              }
               setProjects((items) => [project, ...items]);
               setProjectFilter(status);
               setProjectComposerOpen(false);
@@ -503,7 +580,19 @@ Finished and ready for integration.`,
             <span className="api-request-kicker">DEVELOPER ACCESS</span>
             <h2 id="api-request-title">Request an API key</h2>
             <p>Select every model capability your project needs. Access is reviewed according to academy policy.</p>
-            <form onSubmit={(event) => { event.preventDefault(); setApiRequestOpen(false); }}>
+            <form onSubmit={async (event) => {
+              event.preventDefault();
+              if (authenticated) {
+                try {
+                  await requestApiAccess(selectedApiModels, customApiRequirement);
+                  setSyncError("");
+                } catch (error) {
+                  setSyncError(error instanceof Error ? error.message : "The API access request could not be submitted.");
+                  return;
+                }
+              }
+              setApiRequestOpen(false);
+            }}>
               <fieldset>
                 <legend>Model access</legend>
                 <div className="model-access-grid">
@@ -544,7 +633,7 @@ Finished and ready for integration.`,
                 <span>{selectedApiModels.length}</span>
                 <p><strong>Capabilities selected</strong><small>{selectedApiModels.length ? selectedApiModels.join(" • ") : "Choose at least one model category"}</small></p>
               </div>
-              <button className="api-request-submit" type="submit" disabled={!selectedApiModels.length && !customApiRequirement.trim()}>Submit API key request</button>
+              <button className="api-request-submit" type="submit" disabled={!selectedApiModels.length}>Submit API key request</button>
             </form>
           </section>
         </div>
@@ -569,6 +658,9 @@ Finished and ready for integration.`,
               onClick={() => {
                 setSelectedNotification(notification);
                 setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, unread: false } : item));
+                if (authenticated && typeof notification.id === "string") {
+                  void markNotificationRead(notification.id).catch((error) => setSyncError(error instanceof Error ? error.message : "The notification could not be updated."));
+                }
               }}
             >
               <span className="notification-dot" />
@@ -581,7 +673,10 @@ Finished and ready for integration.`,
           type="button"
           className="mark-read-button"
           disabled={!notifications.some((item) => item.unread)}
-          onClick={() => setNotifications((items) => items.map((item) => ({ ...item, unread: false })))}
+          onClick={() => {
+            setNotifications((items) => items.map((item) => ({ ...item, unread: false })));
+            if (authenticated) void markAllNotificationsRead().catch((error) => setSyncError(error instanceof Error ? error.message : "Notifications could not be updated."));
+          }}
         >
           {notifications.some((item) => item.unread) ? "Mark all as read" : "All caught up"}
         </button>

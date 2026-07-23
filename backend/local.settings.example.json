@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/academy",
+    "AZURE_STORAGE_CONNECTION_STRING": "UseDevelopmentStorage=true",
+    "PROJECT_FILES_CONTAINER": "project-files",
+    "ENTRA_ISSUER": "",
+    "ENTRA_AUDIENCE": "",
+    "ENTRA_JWKS_URI": "",
+    "AUTH_DISABLED": "true",
+    "NODE_ENV": "development"
+  }
+}

@@ -14,6 +14,8 @@ out/
 *.log
 tsconfig.tsbuildinfo
 .vercel/
+backend/dist/
+backend/local.settings.json
 
 # Operating-system files
 .DS_Store
