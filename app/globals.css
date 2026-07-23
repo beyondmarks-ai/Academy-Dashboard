@@ -1358,6 +1358,35 @@
   background: #f1f4f6;
 }
 
+.admin-signup-button {
+  min-width: 148px !important;
+  border-color: rgba(239, 200, 126, .78) !important;
+  color: #f2d294;
+  background: linear-gradient(135deg, rgba(181, 122, 48, .18), rgba(240, 202, 129, .07));
+  box-shadow: inset 0 1px rgba(255, 255, 255, .05), 0 8px 24px rgba(0, 0, 0, .15);
+}
+
+.admin-signup-button span {
+  display: inline-block;
+  margin-right: 7px;
+  color: #f4cd82;
+  font-size: 9px;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.admin-signup-button:hover {
+  color: #fff0ce;
+  background: linear-gradient(135deg, rgba(181, 122, 48, .28), rgba(240, 202, 129, .12));
+  box-shadow: 0 8px 28px rgba(183, 125, 54, .14);
+}
+
+.auth-modal input:read-only {
+  border-color: rgba(226, 184, 111, .28);
+  color: #e8c987;
+  background: rgba(217, 170, 94, .065);
+  cursor: default;
+}
+
 @media (max-width: 560px) {
   .welcome-hero {
     top: 20px;
@@ -1385,13 +1414,18 @@
     right: 18px;
     bottom: 18px;
     left: 18px;
+    flex-wrap: wrap;
   }
 
   .auth-footer button {
-    flex: 1;
+    flex: 1 1 calc(50% - 6px);
     min-width: 0;
     padding-right: 10px;
     padding-left: 10px;
+  }
+
+  .auth-footer .admin-signup-button {
+    min-width: 0 !important;
   }
 
   .dashboard-header { height: 68px; padding: 0 18px; }

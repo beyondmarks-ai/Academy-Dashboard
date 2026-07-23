@@ -53,6 +53,7 @@ function notificationFromApi(notification: AcademyNotification): NotificationIte
 
 export default function Dashboard() {
   const [authMode, setAuthMode] = useState<AuthMode>(null);
+  const [adminSignup, setAdminSignup] = useState(false);
   const [openingMode, setOpeningMode] = useState<AuthMode>(null);
   const [dashboardReady, setDashboardReady] = useState(false);
   const [userName, setUserName] = useState("Student");
@@ -62,8 +63,10 @@ export default function Dashboard() {
   const [authError, setAuthError] = useState("");
   const openingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const beginAuth = (mode: Exclude<AuthMode, null>) => {
+  const beginAuth = (mode: Exclude<AuthMode, null>, forAdmin = false) => {
     if (openingMode) return;
+    setAdminSignup(mode === "signup" && forAdmin);
+    setAuthError("");
     setOpeningMode(mode);
     const animationDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 1850;
     openingTimer.current = setTimeout(() => {
@@ -77,6 +80,7 @@ export default function Dashboard() {
     openingTimer.current = null;
     setOpeningMode(null);
     setAuthMode(null);
+    setAdminSignup(false);
   };
 
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -198,6 +202,9 @@ export default function Dashboard() {
         <button type="button" className="skip-button" disabled={Boolean(openingMode)} onClick={enterDashboard}>Skip for now</button>
         <button type="button" className="login-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Log in</button>
         <button type="button" className="signup-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("signup")}>Sign up</button>
+        <button type="button" className="admin-signup-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("signup", true)}>
+          <span aria-hidden="true">◆</span> Admin sign up
+        </button>
       </footer>
 
       {authMode && (
@@ -213,9 +220,9 @@ export default function Dashboard() {
               aria-labelledby="auth-title"
             >
             <button className="modal-close" type="button" aria-label="Close" onClick={closeAuth}>×</button>
-            <span className="modal-kicker">BEYOND MARKS AI ACADEMY</span>
-            <h2 id="auth-title">{authMode === "login" ? "Welcome back" : "Begin your journey"}</h2>
-            <p>{authMode === "login" ? "Enter your Beyond Marks Academy ID to continue." : "Create your private Academy account with a valid Admission ID."}</p>
+            <span className="modal-kicker">{adminSignup ? "ACADEMY ADMINISTRATION" : "BEYOND MARKS AI ACADEMY"}</span>
+            <h2 id="auth-title">{authMode === "login" ? "Welcome back" : adminSignup ? "Create admin account" : "Begin your journey"}</h2>
+            <p>{authMode === "login" ? "Enter your Beyond Marks Academy ID to continue." : adminSignup ? "Secure the Academy administrator account by choosing your name and password." : "Create your private Academy account with a valid Admission ID."}</p>
 
             <form onSubmit={handleAuthSubmit}>
               {authMode === "signup" && (
@@ -226,7 +233,7 @@ export default function Dashboard() {
                   </label>
                   <label>
                     <span>Admission ID</span>
-                    <input type="text" name="admissionId" placeholder="Enter your admission ID" autoComplete="off" required />
+                    <input type="text" name="admissionId" placeholder="Enter your admission ID" autoComplete="off" defaultValue={adminSignup ? "BM-ADMIN" : ""} readOnly={adminSignup} required />
                   </label>
                 </>
               )}
@@ -238,7 +245,7 @@ export default function Dashboard() {
               ) : (
                 <label>
                   <span>Choose your Academy ID</span>
-                  <input type="text" name="academyId" placeholder="student@beyondmarks.ai" autoComplete="username" inputMode="email" required />
+                  <input type="text" name="academyId" placeholder="student@beyondmarks.ai" autoComplete="username" inputMode="email" defaultValue={adminSignup ? "admin@beyondmarks.ai" : ""} readOnly={adminSignup} required />
                 </label>
               )}
               <label>
@@ -258,7 +265,11 @@ export default function Dashboard() {
 
             <div className="modal-switch">
               {authMode === "login" ? "New to Beyond Marks?" : "Already have an account?"}
-              <button type="button" onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}>
+              <button type="button" onClick={() => {
+                setAdminSignup(false);
+                setAuthError("");
+                setAuthMode(authMode === "login" ? "signup" : "login");
+              }}>
                 {authMode === "login" ? "Sign up" : "Log in"}
               </button>
             </div>
