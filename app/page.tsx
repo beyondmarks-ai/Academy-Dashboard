@@ -7,7 +7,6 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import {
-  completeOnboarding,
   createProject as createApiProject,
   getApiAccess,
   getNotifications,
@@ -21,7 +20,7 @@ import {
   type AcademyProject,
   type AcademySubscription,
 } from "@/lib/academy-api";
-import { signIn } from "@/lib/azure-auth";
+import { loginWithAcademyId, logoutAcademyAccount, signupWithAcademyId } from "@/lib/academy-auth";
 
 type AuthMode = "login" | "signup" | null;
 type NotificationItem = { id: number | string; title: string; message: string; fullMessage: string; time: string; category: string; unread: boolean };
@@ -84,16 +83,20 @@ export default function Dashboard() {
     setAuthPending(true);
     setAuthError("");
     try {
-      const loginHint = String(formData.get(authMode === "signup" ? "email" : "username") || "").trim();
-      await signIn(loginHint);
+      const academyId = String(formData.get("academyId") || "").trim();
+      const password = String(formData.get("password") || "");
+      if (authMode === "signup" && password !== String(formData.get("confirmPassword") || "")) {
+        throw new Error("Passwords do not match.");
+      }
       const profile = authMode === "signup"
-        ? await completeOnboarding({
+        ? await signupWithAcademyId({
             fullName: String(formData.get("name") || "").trim(),
-            username: String(formData.get("username") || "").trim(),
+            academyId,
             admissionId: String(formData.get("admissionId") || "").trim(),
+            password,
           })
-        : await getProfile();
-      setUserName(profile.full_name || profile.username || "Student");
+        : await loginWithAcademyId(academyId, password);
+      setUserName(profile?.full_name || profile?.username || "Student");
       setAuthenticated(true);
       closeAuth();
       setDashboardReady(true);
@@ -110,6 +113,28 @@ export default function Dashboard() {
     setDashboardReady(true);
   };
 
+  const leaveDashboard = async () => {
+    if (authenticated) {
+      try { await logoutAcademyAccount(); } catch { /* The local session is cleared by expiry if Azure is unavailable. */ }
+    }
+    setAuthenticated(false);
+    setDashboardReady(false);
+    setUserName("Student");
+  };
+
+  useEffect(() => {
+    let active = true;
+    getProfile()
+      .then((profile) => {
+        if (!active) return;
+        setUserName(profile.full_name || profile.username || "Student");
+        setAuthenticated(true);
+        setDashboardReady(true);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeAuth();
@@ -124,7 +149,7 @@ export default function Dashboard() {
   const authActive = Boolean(openingMode || authMode);
 
   if (dashboardReady) {
-    return <DashboardDestination userName={userName} authenticated={authenticated} />;
+    return <DashboardDestination userName={userName} authenticated={authenticated} onSignOut={leaveDashboard} />;
   }
 
   return (
@@ -182,7 +207,7 @@ export default function Dashboard() {
             <button className="modal-close" type="button" aria-label="Close" onClick={closeAuth}>×</button>
             <span className="modal-kicker">BEYOND MARKS AI ACADEMY</span>
             <h2 id="auth-title">{authMode === "login" ? "Welcome back" : "Begin your journey"}</h2>
-            <p>{authMode === "login" ? "Continue securely with your Academy Microsoft account." : "Verify your invitation, then link it to your secure Microsoft account."}</p>
+            <p>{authMode === "login" ? "Enter your Beyond Marks Academy ID to continue." : "Create your private Academy account with a valid Admission ID."}</p>
 
             <form onSubmit={handleAuthSubmit}>
               {authMode === "signup" && (
@@ -192,10 +217,6 @@ export default function Dashboard() {
                     <input type="text" name="name" placeholder="Your full name" autoComplete="name" autoFocus required />
                   </label>
                   <label>
-                    <span>Username</span>
-                    <input type="text" name="username" placeholder="Choose a username" autoComplete="username" required />
-                  </label>
-                  <label>
                     <span>Admission ID</span>
                     <input type="text" name="admissionId" placeholder="Enter your admission ID" autoComplete="off" required />
                   </label>
@@ -203,18 +224,28 @@ export default function Dashboard() {
               )}
               {authMode === "login" ? (
                 <label>
-                  <span>Username</span>
-                  <input type="text" name="username" placeholder="Enter your username" autoComplete="username" required autoFocus />
+                  <span>Academy ID</span>
+                  <input type="text" name="academyId" placeholder="student@beyondmarks.ai" autoComplete="username" inputMode="email" required autoFocus />
                 </label>
               ) : (
                 <label>
-                  <span>Email address</span>
-                  <input type="email" name="email" placeholder="you@example.com" autoComplete="email" required />
+                  <span>Choose your Academy ID</span>
+                  <input type="text" name="academyId" placeholder="student@beyondmarks.ai" autoComplete="username" inputMode="email" required />
                 </label>
               )}
-              <p className="auth-security-note">Your password is entered only on Microsoft&apos;s secure sign-in window and is never sent to Beyond Marks.</p>
+              <label>
+                <span>Password</span>
+                <input type="password" name="password" placeholder="At least 12 characters" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength={authMode === "signup" ? 12 : 1} maxLength={128} required />
+              </label>
+              {authMode === "signup" && (
+                <label>
+                  <span>Confirm password</span>
+                  <input type="password" name="confirmPassword" placeholder="Enter the password again" autoComplete="new-password" minLength={12} maxLength={128} required />
+                </label>
+              )}
+              <p className="auth-security-note">Your Academy ID is a private login name, not an email mailbox. No confirmation email is required.</p>
               {authError && <p className="auth-form-error" role="alert">{authError}</p>}
-              <button className="modal-submit" type="submit" disabled={authPending}>{authPending ? "Opening secure sign-in…" : authMode === "login" ? "Continue with Microsoft" : "Verify & create account"}</button>
+              <button className="modal-submit" type="submit" disabled={authPending}>{authPending ? "Securing your session…" : authMode === "login" ? "Log in securely" : "Create Academy account"}</button>
             </form>
 
             <div className="modal-switch">
@@ -231,7 +262,7 @@ export default function Dashboard() {
   );
 }
 
-function DashboardDestination({ userName, authenticated }: { userName: string; authenticated: boolean }) {
+function DashboardDestination({ userName, authenticated, onSignOut }: { userName: string; authenticated: boolean; onSignOut: () => void }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeItem, setActiveItem] = useState("Overview");
   const [activeApiOption, setActiveApiOption] = useState<"request" | "accessed" | null>(null);
@@ -387,6 +418,7 @@ Finished and ready for integration.`,
           <span>{userName.slice(0, 1).toUpperCase()}</span>
           <div><strong>{userName}</strong><small>Learner account</small></div>
         </div>
+        <button className="sidebar-signout" type="button" onClick={onSignOut}>{authenticated ? "Log out" : "Return to welcome"}</button>
       </aside>
 
       {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}

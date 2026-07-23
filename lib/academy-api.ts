@@ -1,10 +1,7 @@
-import { getAccessToken } from "./azure-auth";
-
-const apiBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(/\/$/, "");
-
 export type AcademyProfile = {
   id: string;
-  email: string;
+  academy_id: string;
+  email: string | null;
   username: string;
   full_name: string;
   admission_id: string | null;
@@ -45,12 +42,10 @@ export type AcademySubscription = {
 type ApiEnvelope<T> = { data: T; requestId: string };
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!apiBaseUrl) throw new Error("The Academy API URL is not configured.");
-  const token = await getAccessToken();
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const proxyPath = path.replace(/^\/api\//, "/api/academy/");
+  const response = await fetch(proxyPath, {
     ...init,
     headers: {
-      authorization: `Bearer ${token}`,
       ...(init.body ? { "content-type": "application/json" } : {}),
       ...init.headers,
     },
@@ -67,13 +62,6 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export async function getProfile() {
   return (await apiRequest<ApiEnvelope<AcademyProfile>>("/api/v1/me")).data;
-}
-
-export async function completeOnboarding(input: { fullName: string; username: string; admissionId: string }) {
-  return (await apiRequest<ApiEnvelope<AcademyProfile>>("/api/v1/me/onboarding", {
-    method: "POST",
-    body: JSON.stringify(input),
-  })).data;
 }
 
 export async function getNotifications() {

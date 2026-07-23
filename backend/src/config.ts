@@ -7,9 +7,6 @@ const configSchema = z.object({
   AZURE_STORAGE_CONNECTION_STRING: z.string().optional(),
   AZURE_CLIENT_ID: z.string().optional(),
   PROJECT_FILES_CONTAINER: z.string().default("project-files"),
-  ENTRA_ISSUER: z.string().url().optional().or(z.literal("")),
-  ENTRA_AUDIENCE: z.string().optional().default(""),
-  ENTRA_JWKS_URI: z.string().url().optional().or(z.literal("")),
   AUTH_DISABLED: z.enum(["true", "false"]).default("false"),
   FRONTEND_ORIGIN: z.string().default("http://localhost:3000"),
 });

@@ -1,84 +1,102 @@
+import { createHash } from "node:crypto";
 import type { HttpRequest } from "@azure/functions";
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { getConfig } from "./config.js";
 import { HttpError } from "./http.js";
 import { query } from "./db.js";
 
+export type ProfileRow = {
+  id: string;
+  entra_object_id: string | null;
+  email: string | null;
+  academy_id: string | null;
+  username: string;
+  full_name: string;
+  admission_id: string | null;
+  role: "student" | "admin" | "developer";
+  status: "active" | "suspended" | "pending";
+};
+
 export type AuthenticatedUser = {
-  entraObjectId: string;
-  email: string;
+  profileId: string;
+  academyId: string;
   name: string;
   username: string;
   admissionId: string;
   roles: string[];
-  claims: JWTPayload;
 };
 
-let jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
-
-function claimBySuffix(claims: JWTPayload, suffix: string): string {
-  const entry = Object.entries(claims).find(([key, value]) => key.toLowerCase().endsWith(suffix.toLowerCase()) && typeof value === "string");
-  return entry?.[1] as string || "";
+export function hashSessionToken(token: string) {
+  return createHash("sha256").update(token, "utf8").digest("hex");
 }
 
 export async function requireAuth(request: HttpRequest): Promise<AuthenticatedUser> {
   const config = getConfig();
   if (config.AUTH_DISABLED === "true" && config.NODE_ENV !== "production") {
     return {
-      entraObjectId: request.headers.get("x-dev-user-id") || "00000000-0000-0000-0000-000000000001",
-      email: request.headers.get("x-dev-user-email") || "student@beyondmarks.local",
+      profileId: request.headers.get("x-dev-user-id") || "00000000-0000-0000-0000-000000000001",
+      academyId: request.headers.get("x-dev-academy-id") || "student@beyondmarks.ai",
       name: request.headers.get("x-dev-user-name") || "Development Student",
       username: request.headers.get("x-dev-username") || "student",
       admissionId: request.headers.get("x-dev-admission-id") || "DEV-001",
       roles: ["Student"],
-      claims: {},
     };
   }
 
   const authorization = request.headers.get("authorization");
-  if (!authorization?.startsWith("Bearer ")) throw new HttpError(401, "A bearer token is required.", "UNAUTHENTICATED");
-  if (!config.ENTRA_ISSUER || !config.ENTRA_AUDIENCE || !config.ENTRA_JWKS_URI) {
-    throw new HttpError(503, "Authentication is not configured.", "AUTH_NOT_CONFIGURED");
+  if (!authorization?.startsWith("Bearer ")) {
+    throw new HttpError(401, "A valid Academy session is required.", "UNAUTHENTICATED");
   }
 
-  try {
-    jwks ??= createRemoteJWKSet(new URL(config.ENTRA_JWKS_URI));
-    const { payload } = await jwtVerify(authorization.slice(7), jwks, {
-      issuer: config.ENTRA_ISSUER,
-      audience: config.ENTRA_AUDIENCE,
-    });
-    const objectId = String(payload.oid || payload.sub || "");
-    if (!objectId) throw new Error("Token has no stable subject.");
-    const roles = Array.isArray(payload.roles) ? payload.roles.map(String) : ["Student"];
-    return {
-      entraObjectId: objectId,
-      email: String(payload.email || payload.preferred_username || ""),
-      name: String(payload.name || "Student"),
-      username: claimBySuffix(payload, "username") || String(payload.preferred_username || "").split("@")[0] || "student",
-      admissionId: claimBySuffix(payload, "admissionid"),
-      roles,
-      claims: payload,
-    };
-  } catch {
-    throw new HttpError(401, "The access token is invalid or expired.", "INVALID_TOKEN");
+  const token = authorization.slice(7).trim();
+  if (token.length < 32 || token.length > 512) {
+    throw new HttpError(401, "The Academy session is invalid or expired.", "INVALID_SESSION");
   }
+
+  const result = await query<ProfileRow>(`
+    SELECT p.id, p.entra_object_id, p.email, p.academy_id, p.username, p.full_name,
+           p.admission_id, p.role, p.status
+    FROM auth_sessions s
+    JOIN user_profiles p ON p.id = s.user_id
+    WHERE s.token_hash = $1
+      AND s.revoked_at IS NULL
+      AND s.expires_at > now()
+    LIMIT 1
+  `, [hashSessionToken(token)]);
+  const profile = result.rows[0];
+  if (!profile || profile.status !== "active" || !profile.academy_id) {
+    throw new HttpError(401, "The Academy session is invalid or expired.", "INVALID_SESSION");
+  }
+
+  await query(`
+    UPDATE auth_sessions
+    SET last_seen_at = now()
+    WHERE token_hash = $1 AND last_seen_at < now() - interval '5 minutes'
+  `, [hashSessionToken(token)]);
+
+  return {
+    profileId: profile.id,
+    academyId: profile.academy_id,
+    name: profile.full_name,
+    username: profile.username,
+    admissionId: profile.admission_id || "",
+    roles: [profile.role[0]!.toUpperCase() + profile.role.slice(1)],
+  };
 }
 
 export function requireRole(user: AuthenticatedUser, ...roles: string[]) {
-  if (!roles.some((role) => user.roles.includes(role))) throw new HttpError(403, "You do not have permission for this action.", "FORBIDDEN");
+  if (!roles.some((role) => user.roles.includes(role))) {
+    throw new HttpError(403, "You do not have permission for this action.", "FORBIDDEN");
+  }
 }
 
 export async function ensureProfile(user: AuthenticatedUser) {
-  const result = await query<{
-    id: string; entra_object_id: string; email: string; username: string; full_name: string; admission_id: string | null; role: string; status: string;
-  }>(`
-    INSERT INTO user_profiles (entra_object_id, email, username, full_name, admission_id, role)
-    VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6)
-    ON CONFLICT (entra_object_id) DO UPDATE SET
-      email = EXCLUDED.email,
-      full_name = EXCLUDED.full_name,
-      updated_at = now()
-    RETURNING *
-  `, [user.entraObjectId, user.email, user.username, user.name, user.admissionId, user.roles.includes("Admin") ? "admin" : "student"]);
-  return result.rows[0];
+  const result = await query<ProfileRow>(`
+    SELECT id, entra_object_id, email, academy_id, username, full_name,
+           admission_id, role, status
+    FROM user_profiles
+    WHERE id = $1
+  `, [user.profileId]);
+  const profile = result.rows[0];
+  if (!profile) throw new HttpError(401, "The Academy account no longer exists.", "ACCOUNT_NOT_FOUND");
+  return profile;
 }

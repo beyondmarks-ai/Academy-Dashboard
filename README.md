@@ -1,11 +1,12 @@
 # Academy Dashboard
 
-Beyond Marks AI Academy's navy-and-gold Next.js dashboard with Microsoft Entra authentication and an Azure serverless backend.
+Beyond Marks AI Academy's navy-and-gold Next.js dashboard with first-party Academy ID authentication and an Azure serverless backend.
 
 ## What is included
 
-- Microsoft Entra sign-in; passwords never pass through the application
-- Admission ID invitation and onboarding workflow
+- Private `student@beyondmarks.ai` Academy IDs that do not require email mailboxes
+- Admission ID invitation, password hashing, lockout, and revocable-session workflow
+- HttpOnly, same-site session cookies through a server-side Next.js proxy
 - PostgreSQL-backed profiles, notifications, projects, and API-access requests
 - Private Azure Blob storage for uploaded `README.md` files
 - Managed identities and Key Vault references instead of embedded cloud secrets
@@ -19,7 +20,7 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The checked-in `.env.example` points at the deployed dev API and contains public identifiers only.
+Open [http://localhost:3000](http://localhost:3000). `ACADEMY_API_BASE_URL` is server-only; the Azure API URL and session token are not exposed to browser JavaScript.
 
 ## Backend
 
@@ -41,7 +42,6 @@ Local backend settings belong in `backend/local.settings.json`; use `backend/loc
 - Region: Central India
 - API: `https://bm-academy-dev-api-ydjvvkil.azurewebsites.net`
 - Health: `https://bm-academy-dev-api-ydjvvkil.azurewebsites.net/api/v1/health`
-- Entra client ID: `f5b76c80-0caf-4950-923c-41caa7af243b`
 
 Infrastructure is defined in `infra/main.bicep`. It provisions Flex Consumption Functions, PostgreSQL Flexible Server, Storage, Key Vault, Application Insights, Log Analytics, and a user-assigned managed identity. PostgreSQL is a billable Burstable `Standard_B1ms` dev resource.
 
@@ -57,37 +57,41 @@ Deploy or reconcile it:
 .\scripts\deploy-azure.ps1 -Deploy
 ```
 
-Configure the Entra registration when recreating it:
-
-```powershell
-.\scripts\configure-entra.ps1 `
-  -ApplicationObjectId '<application-object-id>' `
-  -ClientId '<client-id>'
-```
-
 ## Admission invitations
 
-Signup requires both a valid Microsoft identity in the configured tenant and an unclaimed Admission ID. Issue an invitation without displaying the Function key:
+Signup requires an unclaimed Admission ID. Optionally bind it to exactly one Academy ID:
 
 ```powershell
 .\scripts\new-admission-invite.ps1 `
   -AdmissionId 'BM-2026-001' `
-  -AllowedEmail 'student@example.com' `
+  -AllowedAcademyId 'student@beyondmarks.ai' `
   -ExpiresAt '2026-12-31T23:59:59Z'
 ```
 
-The Admission ID is claimed atomically during onboarding. Reusing a claimed ID returns a conflict.
+The Admission ID is claimed atomically during signup. The Academy ID is a login identifier, not a deliverable email address. Reusing either a claimed Admission ID or an existing Academy ID is rejected.
+
+## Authentication security
+
+- Passwords require at least 12 characters with uppercase, lowercase, and numeric characters.
+- Passwords are stored only as uniquely salted, memory-hard `scrypt` hashes.
+- Five failed passwords lock an account for 15 minutes.
+- Account-, Admission-ID-, and IP-based rate limits protect authentication routes.
+- Opaque 256-bit sessions expire after 12 hours, are revocable, and are stored only as SHA-256 hashes in PostgreSQL.
+- The raw session stays in an HttpOnly, same-site cookie and never enters client-side storage.
+- Cross-origin mutations are rejected, and the frontend emits CSP, framing, MIME-sniffing, referrer, and permissions headers.
 
 ## API routes
 
-Public health:
+Public:
 
 - `GET /api/v1/health`
+- `POST /api/v1/auth/signup`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`
 
-Bearer-token protected:
+Opaque-session protected:
 
 - `GET /api/v1/me`
-- `POST /api/v1/me/onboarding`
 - `GET|POST /api/v1/projects`
 - `GET /api/v1/projects/{id}`
 - `GET /api/v1/notifications`
@@ -96,7 +100,7 @@ Bearer-token protected:
 - `GET /api/v1/api-access`
 - `POST /api/v1/api-access/requests`
 
-Function-key protected operations are limited to migration and admission-invitation bootstrap routes.
+Function-key protected operations are limited to migration, admission-invitation bootstrap, and account administration routes.
 
 ## Verification
 

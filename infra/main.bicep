@@ -10,15 +10,6 @@ param location string = resourceGroup().location
 @description('Allowed browser origin for the dashboard.')
 param frontendOrigin string = 'http://localhost:3000'
 
-@description('Microsoft Entra token issuer. Leave empty until External ID is configured.')
-param entraIssuer string = ''
-
-@description('Microsoft Entra API application/client ID.')
-param entraAudience string = ''
-
-@description('Microsoft Entra JWKS endpoint.')
-param entraJwksUri string = ''
-
 @description('Object ID of the operator deploying this environment.')
 param deployerObjectId string
 
@@ -337,9 +328,6 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       AZURE_STORAGE_ACCOUNT_URL: storage.properties.primaryEndpoints.blob
       PROJECT_FILES_CONTAINER: projectContainerName
       DATABASE_URL: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=postgres-connection)'
-      ENTRA_ISSUER: entraIssuer
-      ENTRA_AUDIENCE: entraAudience
-      ENTRA_JWKS_URI: entraJwksUri
       FRONTEND_ORIGIN: frontendOrigin
       NODE_ENV: 'production'
       AUTH_DISABLED: 'false'

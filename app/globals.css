@@ -569,6 +569,8 @@
 .sidebar-account > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; color: #081829; background: linear-gradient(145deg, #f0ce8b, #a97131); font-size: 12px; font-weight: 700; }
 .sidebar-account strong { display: block; max-width: 175px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .sidebar-account small { display: block; margin-top: 2px; color: #718696; font-size: 8px; }
+.sidebar-signout { width: 100%; height: 38px; margin-top: 10px; border: 1px solid rgba(170, 194, 212, .12); border-radius: 8px; color: #91a4b2; background: rgba(255, 255, 255, .025); font-size: 10px; font-weight: 700; cursor: pointer; transition: color .2s ease, border-color .2s ease, background .2s ease; }
+.sidebar-signout:hover { color: #f0ce8b; border-color: rgba(214, 170, 98, .28); background: rgba(214, 170, 98, .07); }
 
 .sidebar-backdrop {
   position: fixed;

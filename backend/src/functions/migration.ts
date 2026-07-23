@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
 import { getPool } from "../db.js";
@@ -14,10 +14,17 @@ function diagnostic(error: unknown) {
 
 async function runMigration(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const requestId = context.invocationId;
-  let sql: string;
+  let migrations: Array<{ name: string; sql: string }>;
 
   try {
-    sql = await readFile(resolve(process.cwd(), "migrations/001_initial.sql"), "utf8");
+    const migrationsDirectory = resolve(process.cwd(), "migrations");
+    const migrationFiles = (await readdir(migrationsDirectory))
+      .filter((name) => /^\d+.*\.sql$/.test(name))
+      .sort();
+    migrations = await Promise.all(migrationFiles.map(async (name) => ({
+      name,
+      sql: await readFile(resolve(migrationsDirectory, name), "utf8"),
+    })));
   } catch (error) {
     context.error("Database migration file could not be loaded", error);
     return json(500, {
@@ -27,8 +34,8 @@ async function runMigration(_request: HttpRequest, context: InvocationContext): 
   }
 
   try {
-    await getPool().query(sql);
-    return json(200, { status: "migrated", requestId });
+    for (const migration of migrations) await getPool().query(migration.sql);
+    return json(200, { status: "migrated", migrations: migrations.map((item) => item.name), requestId });
   } catch (error) {
     context.error("Database migration failed", error);
     const response = errorResponse(error, requestId);

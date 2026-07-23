@@ -3,7 +3,7 @@ param(
   [Parameter(Mandatory)]
   [string]$AdmissionId,
 
-  [string]$AllowedEmail = '',
+  [string]$AllowedAcademyId = '',
 
   [string]$ExpiresAt = '',
 
@@ -26,10 +26,10 @@ if ([string]::IsNullOrWhiteSpace($functionKey)) {
 
 $payload = @{
   admissionId = $AdmissionId
-  allowedEmail = $AllowedEmail
+  allowedAcademyId = $AllowedAcademyId
   expiresAt = $ExpiresAt
 } | ConvertTo-Json
 
 $uri = "https://$FunctionApp.azurewebsites.net/api/internal/admission-invites?code=$([Uri]::EscapeDataString($functionKey))"
 $result = Invoke-RestMethod -Method Post -Uri $uri -ContentType 'application/json' -Body $payload
-$result.data | Select-Object admission_id, allowed_email, expires_at, created_at
+$result.data | Select-Object admission_id, allowed_academy_id, expires_at, created_at

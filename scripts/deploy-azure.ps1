@@ -3,9 +3,6 @@ param(
   [string]$Location = 'centralindia',
   [string]$EnvironmentName = 'dev',
   [string]$FrontendOrigin = 'http://localhost:3000',
-  [string]$EntraIssuer = 'https://login.microsoftonline.com/16b09027-c852-4980-9d01-bd9ffc9b1276/v2.0',
-  [string]$EntraAudience = 'f5b76c80-0caf-4950-923c-41caa7af243b',
-  [string]$EntraJwksUri = 'https://login.microsoftonline.com/16b09027-c852-4980-9d01-bd9ffc9b1276/discovery/v2.0/keys',
   [switch]$Deploy
 )
 
@@ -39,9 +36,6 @@ $parameters = @(
   "environmentName=$EnvironmentName",
   "location=$Location",
   "frontendOrigin=$FrontendOrigin",
-  "entraIssuer=$EntraIssuer",
-  "entraAudience=$EntraAudience",
-  "entraJwksUri=$EntraJwksUri",
   "deployerObjectId=$deployerObjectId",
   "postgresAdminPassword=$password"
 )
