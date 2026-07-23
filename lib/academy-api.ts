@@ -39,6 +39,29 @@ export type AcademySubscription = {
   rotated_at: string | null;
 };
 
+export type AdminStudent = {
+  id: string;
+  academy_id: string;
+  username: string;
+  full_name: string;
+  admission_id: string | null;
+  role: "student" | "developer";
+  status: "active" | "suspended" | "pending";
+  created_at: string;
+  last_seen_at: string | null;
+};
+
+export type AdminInvitation = {
+  id: string;
+  admission_id: string;
+  allowed_academy_id: string | null;
+  assigned_role: "student" | "developer" | "admin";
+  expires_at: string | null;
+  created_at: string;
+  claimed_at: string | null;
+  claimed_by_academy_id: string | null;
+};
+
 type ApiEnvelope<T> = { data: T; requestId: string };
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -107,4 +130,39 @@ export async function requestApiAccess(capabilities: string[], otherRequirements
     method: "POST",
     body: JSON.stringify({ capabilities, otherRequirements }),
   })).data;
+}
+
+export async function adminGetStudents(search = "") {
+  const query = search ? `?search=${encodeURIComponent(search)}` : "";
+  return (await apiRequest<ApiEnvelope<AdminStudent[]>>(`/api/v1/admin/students${query}`)).data;
+}
+
+export async function adminGetInvitations() {
+  return (await apiRequest<ApiEnvelope<AdminInvitation[]>>("/api/v1/admin/invitations")).data;
+}
+
+export async function adminCreateInvitation(input: {
+  admissionId: string;
+  allowedAcademyId: string;
+  role: "student" | "developer";
+  expiresAt: string;
+}) {
+  return (await apiRequest<ApiEnvelope<AdminInvitation>>("/api/v1/admin/invitations", {
+    method: "POST",
+    body: JSON.stringify(input),
+  })).data;
+}
+
+export async function adminSetStudentStatus(id: string, status: "active" | "suspended") {
+  return (await apiRequest<ApiEnvelope<AdminStudent>>(`/api/v1/admin/students/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  })).data;
+}
+
+export async function adminResetStudentPassword(id: string, password: string) {
+  await apiRequest<void>(`/api/v1/admin/students/${id}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
 }

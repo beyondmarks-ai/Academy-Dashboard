@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
+import { AdminDashboard } from "@/components/admin-dashboard";
 import {
   createProject as createApiProject,
   getApiAccess,
@@ -55,6 +56,7 @@ export default function Dashboard() {
   const [openingMode, setOpeningMode] = useState<AuthMode>(null);
   const [dashboardReady, setDashboardReady] = useState(false);
   const [userName, setUserName] = useState("Student");
+  const [userRole, setUserRole] = useState<"student" | "admin" | "developer">("student");
   const [authenticated, setAuthenticated] = useState(false);
   const [authPending, setAuthPending] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -97,6 +99,7 @@ export default function Dashboard() {
           })
         : await loginWithAcademyId(academyId, password);
       setUserName(profile?.full_name || profile?.username || "Student");
+      setUserRole(profile?.role === "admin" ? "admin" : profile?.role === "developer" ? "developer" : "student");
       setAuthenticated(true);
       closeAuth();
       setDashboardReady(true);
@@ -110,6 +113,7 @@ export default function Dashboard() {
   const enterDashboard = () => {
     if (openingMode || authMode) return;
     setUserName("Student");
+    setUserRole("student");
     setDashboardReady(true);
   };
 
@@ -128,6 +132,7 @@ export default function Dashboard() {
       .then((profile) => {
         if (!active) return;
         setUserName(profile.full_name || profile.username || "Student");
+        setUserRole(profile.role);
         setAuthenticated(true);
         setDashboardReady(true);
       })
@@ -149,6 +154,9 @@ export default function Dashboard() {
   const authActive = Boolean(openingMode || authMode);
 
   if (dashboardReady) {
+    if (authenticated && userRole === "admin") {
+      return <AdminDashboard adminName={userName} onSignOut={leaveDashboard} />;
+    }
     return <DashboardDestination userName={userName} authenticated={authenticated} onSignOut={leaveDashboard} />;
   }
 

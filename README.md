@@ -11,6 +11,7 @@ Beyond Marks AI Academy's navy-and-gold Next.js dashboard with first-party Acade
 - Private Azure Blob storage for uploaded `README.md` files
 - Managed identities and Key Vault references instead of embedded cloud secrets
 - Responsive dashboard, Markdown rendering, model-access selection, and demo skip mode
+- Dedicated administrator dashboard for student accounts, invitations, status controls, and password resets
 
 ## Local frontend
 
@@ -70,6 +71,17 @@ Signup requires an unclaimed Admission ID. Optionally bind it to exactly one Aca
 
 The Admission ID is claimed atomically during signup. The Academy ID is a login identifier, not a deliverable email address. Reusing either a claimed Admission ID or an existing Academy ID is rejected.
 
+Create a one-time administrator invitation only from the protected CLI:
+
+```powershell
+.\scripts\new-admission-invite.ps1 `
+  -AdmissionId 'BM-ADMIN' `
+  -AllowedAcademyId 'admin@beyondmarks.ai' `
+  -Role admin
+```
+
+Normal administrators can issue only student and developer invitations from the dashboard; they cannot create another administrator.
+
 ## Authentication security
 
 - Passwords require at least 12 characters with uppercase, lowercase, and numeric characters.
@@ -99,6 +111,10 @@ Opaque-session protected:
 - `POST /api/v1/notifications/read-all`
 - `GET /api/v1/api-access`
 - `POST /api/v1/api-access/requests`
+- `GET /api/v1/admin/students` *(admin only)*
+- `PATCH /api/v1/admin/students/{id}/status` *(admin only)*
+- `POST /api/v1/admin/students/{id}/reset-password` *(admin only)*
+- `GET|POST /api/v1/admin/invitations` *(admin only)*
 
 Function-key protected operations are limited to migration, admission-invitation bootstrap, and account administration routes.
 

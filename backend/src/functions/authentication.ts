@@ -71,8 +71,8 @@ async function signup(request: HttpRequest, context: InvocationContext): Promise
     const passwordHash = await hashPassword(input.password);
 
     const profile = await transaction(async (client) => {
-      const invite = await client.query<{ id: string }>(`
-        SELECT id FROM admission_invites
+      const invite = await client.query<{ id: string; assigned_role: "student" | "admin" | "developer" }>(`
+        SELECT id, assigned_role FROM admission_invites
         WHERE admission_id = $1
           AND claimed_by IS NULL
           AND (expires_at IS NULL OR expires_at > now())
@@ -87,9 +87,9 @@ async function signup(request: HttpRequest, context: InvocationContext): Promise
         id: string; academy_id: string; username: string; full_name: string; admission_id: string; role: string; status: string;
       }>(`
         INSERT INTO user_profiles (academy_id, username, full_name, admission_id, role, status)
-        VALUES ($1, $2, $3, $4, 'student', 'active')
+        VALUES ($1, $2, $3, $4, $5, 'active')
         RETURNING id, academy_id, username, full_name, admission_id, role, status
-      `, [academyId, username, input.fullName, input.admissionId]);
+      `, [academyId, username, input.fullName, input.admissionId, invite.rows[0].assigned_role]);
       const user = created.rows[0]!;
       await client.query(`INSERT INTO auth_credentials (user_id, password_hash) VALUES ($1, $2)`, [user.id, passwordHash]);
       await client.query(`UPDATE admission_invites SET claimed_by = $1, claimed_at = now() WHERE id = $2`, [user.id, invite.rows[0].id]);

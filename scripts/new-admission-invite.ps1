@@ -7,6 +7,9 @@ param(
 
   [string]$ExpiresAt = '',
 
+  [ValidateSet('student', 'admin', 'developer')]
+  [string]$Role = 'student',
+
   [string]$ResourceGroup = 'rg-bm-academy-dev',
 
   [string]$FunctionApp = 'bm-academy-dev-api-ydjvvkil'
@@ -28,8 +31,9 @@ $payload = @{
   admissionId = $AdmissionId
   allowedAcademyId = $AllowedAcademyId
   expiresAt = $ExpiresAt
+  role = $Role
 } | ConvertTo-Json
 
 $uri = "https://$FunctionApp.azurewebsites.net/api/internal/admission-invites?code=$([Uri]::EscapeDataString($functionKey))"
 $result = Invoke-RestMethod -Method Post -Uri $uri -ContentType 'application/json' -Body $payload
-$result.data | Select-Object admission_id, allowed_academy_id, expires_at, created_at
+$result.data | Select-Object admission_id, allowed_academy_id, assigned_role, expires_at, created_at
