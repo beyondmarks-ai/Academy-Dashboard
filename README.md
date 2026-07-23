@@ -80,7 +80,7 @@ Create a one-time administrator invitation only from the protected CLI:
   -Role admin
 ```
 
-Normal administrators can issue only student and developer invitations from the dashboard; they cannot create another administrator.
+The administrator uses the normal signup form once to claim this reserved invitation and choose a private password. After activation, use the dedicated **Admin sign in** button. Database constraints permit only one administrator profile and one unclaimed administrator invitation. Normal administrators can issue only student and developer invitations from the dashboard.
 
 ## Authentication security
 
