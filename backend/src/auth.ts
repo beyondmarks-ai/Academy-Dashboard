@@ -84,7 +84,8 @@ export async function requireAuth(request: HttpRequest): Promise<AuthenticatedUs
 }
 
 export function requireRole(user: AuthenticatedUser, ...roles: string[]) {
-  if (!roles.some((role) => user.roles.includes(role))) {
+  const granted = new Set(user.roles.map((role) => role.trim().toLowerCase()));
+  if (!roles.some((role) => granted.has(role.trim().toLowerCase()))) {
     throw new HttpError(403, "You do not have permission for this action.", "FORBIDDEN");
   }
 }

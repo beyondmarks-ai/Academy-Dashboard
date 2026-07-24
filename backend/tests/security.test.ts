@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hashPassword, normalizeAcademyId, verifyPassword } from "../src/security.js";
+import { requireRole } from "../src/auth.js";
 
 describe("Academy authentication security", () => {
   it("normalizes only Beyond Marks Academy IDs", () => {
@@ -17,4 +18,17 @@ describe("Academy authentication security", () => {
     await expect(verifyPassword(password, encoded)).resolves.toBe(true);
     await expect(verifyPassword("Wrong-Academy-Password-2026", encoded)).resolves.toBe(false);
   }, 20_000);
+
+  it("matches authorized roles without casing restrictions", () => {
+    const identity = {
+      profileId: "00000000-0000-0000-0000-000000000001",
+      academyId: "admin@beyondmarks.ai",
+      name: "Academy Admin",
+      username: "admin",
+      admissionId: "BM-ADMIN",
+      roles: ["admin"],
+    };
+    expect(() => requireRole(identity, "Admin")).not.toThrow();
+    expect(() => requireRole(identity, "Student")).toThrow("permission");
+  });
 });
