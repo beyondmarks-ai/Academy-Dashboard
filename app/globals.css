@@ -1380,6 +1380,29 @@
   box-shadow: 0 8px 28px rgba(183, 125, 54, .14);
 }
 
+.admin-operations { margin-top: 24px; }
+.admin-ops-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px;padding:20px; }
+.admin-op-card { padding:20px;border:1px solid rgba(226,184,111,.18);border-radius:14px;background:linear-gradient(145deg,rgba(255,255,255,.045),rgba(255,255,255,.018)); }
+.admin-op-card>span { color:#d9aa5e;font-size:9px;font-weight:800;letter-spacing:.15em; }
+.admin-op-card h3 { margin:8px 0;color:#f5ead4;font-size:18px; }
+.admin-op-card p,.admin-op-card footer { color:#95a8b8;font-size:12px;line-height:1.6; }
+.admin-op-card input,.admin-op-card select { width:100%;height:40px;margin-top:10px;padding:0 11px;border:1px solid rgba(255,255,255,.13);border-radius:8px;color:#fff;background:#0b2235; }
+.admin-inline-form,.admin-campaign-form { display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;padding:20px;border-bottom:1px solid rgba(255,255,255,.08); }
+.admin-inline-form input,.admin-inline-form button,.admin-campaign-form input,.admin-campaign-form select,.admin-campaign-form button,.admin-campaign-form textarea { min-height:42px;padding:10px 12px;border:1px solid rgba(255,255,255,.13);border-radius:8px;color:#fff;background:#0b2235; }
+.admin-inline-form button,.admin-campaign-form button { border-color:#d9aa5e;color:#071827;background:linear-gradient(100deg,#b77d36,#efd08e);font-weight:800;cursor:pointer; }
+.admin-campaign-form { grid-template-columns:1fr 2fr 1fr 120px 190px; }
+.admin-campaign-form textarea { resize:vertical; }
+.admin-subheading { margin:20px;color:#f5ead4; }
+@media(max-width:900px){.admin-inline-form,.admin-campaign-form{grid-template-columns:1fr 1fr}.admin-campaign-form textarea{grid-column:1/-1}}
+@media(max-width:560px){.admin-inline-form,.admin-campaign-form{grid-template-columns:1fr}.admin-campaign-form textarea{grid-column:auto}}
+.verify-screen{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 15%,#12314a,#061522 65%);color:#fff}
+.verify-card{width:min(580px,100%);padding:42px;border:1px solid rgba(224,179,99,.35);border-radius:22px;text-align:center;background:rgba(7,25,39,.94);box-shadow:0 30px 90px rgba(0,0,0,.45)}
+.verify-logo{position:relative;width:92px;height:92px;margin:0 auto 18px;overflow:hidden;border:1px solid #d9aa5e;border-radius:50%}.verify-logo img{object-fit:cover}
+.verify-card>span{color:#d9aa5e;font-size:10px;font-weight:800;letter-spacing:.22em}.verify-card h1{margin:8px 0 25px;font-family:"Playfair Display",Georgia,serif;font-size:36px}
+.verify-state{display:inline-flex;align-items:center;gap:9px;padding:10px 16px;border-radius:999px;background:rgba(71,170,125,.12);color:#81d8a9;font-weight:700}.verify-state.revoked{background:rgba(205,76,65,.13);color:#f0a198}.verify-state i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.verify-card dl{margin:28px 0 0;text-align:left}.verify-card dl div{display:grid;grid-template-columns:145px 1fr;gap:16px;padding:14px 0;border-top:1px solid rgba(255,255,255,.08)}.verify-card dt{color:#8298a9;font-size:12px}.verify-card dd{margin:0;color:#f3e8d3}.verify-invalid{padding:24px;border:1px solid rgba(220,96,81,.25);border-radius:12px;color:#efaaa1;background:rgba(130,42,31,.12)}
+.learner-academics-box{padding:18px;border:1px solid rgba(217,170,94,.2);border-radius:16px;background:rgba(7,25,39,.9)}.learner-course-list article{display:grid;grid-template-columns:1fr auto;gap:9px;padding:12px 0;border-top:1px solid rgba(255,255,255,.08)}.learner-course-list strong,.learner-certificate-list strong{display:block;color:#f3e8d3;font-size:13px}.learner-course-list small,.learner-certificate-list small{color:#8298a9}.learner-course-list article>span{color:#d9aa5e}.learner-course-list i{grid-column:1/-1;height:5px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.08)}.learner-course-list b{display:block;height:100%;background:#d9aa5e}.learner-certificate-list a{display:block;margin-top:10px;padding:12px;border:1px solid rgba(217,170,94,.18);border-radius:9px;text-decoration:none;background:rgba(217,170,94,.05)}.learner-certificate-list a>span{color:#d9aa5e;font-size:9px;letter-spacing:.12em}
+
 .auth-modal input:read-only {
   border-color: rgba(226, 184, 111, .28);
   color: #e8c987;

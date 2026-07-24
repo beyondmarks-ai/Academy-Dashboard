@@ -61,6 +61,11 @@ export type AdminInvitation = {
   claimed_at: string | null;
   claimed_by_academy_id: string | null;
 };
+export type AdminAdmission = Omit<AdminStudent,"status"> & { status:"active"|"suspended"|"pending"|"rejected"; admission_number: string | null; rejection_reason: string | null; reviewed_at: string | null };
+export type AdminCourse = { id:string; code:string; title:string; description:string; duration:string; status:"draft"|"active"|"archived"; enrollment_count:number; completion_count:number };
+export type AdminEnrollment = { id:string; course_id:string; student_id:string; progress:number; status:"enrolled"|"in_progress"|"completed"|"withdrawn"; notes:string; course_code?:string; course_title?:string; title?:string; student_name?:string; academy_id?:string; admission_number:string|null; completed_at:string|null };
+export type AcademyCertificate = { id:string; verification_number:string; course_title:string; completion_date:string; issued_at:string|null; status:"draft"|"generating"|"validation_failed"|"issued"|"revoked" };
+export type AdminCampaign = { id:string; title:string; message:string; category:string; priority:string; publish_at:string; expires_at:string|null; recipient_count:number; read_count:number };
 
 type ApiEnvelope<T> = { data: T; requestId: string };
 
@@ -166,3 +171,19 @@ export async function adminResetStudentPassword(id: string, password: string) {
     body: JSON.stringify({ password }),
   });
 }
+
+export async function adminGetAdmissions(){return(await apiRequest<ApiEnvelope<AdminAdmission[]>>("/api/v1/admin/admissions")).data;}
+export async function adminReviewAdmission(id:string,input:{decision:"approve";admissionNumber:string}|{decision:"reject";reason:string}|{decision:"reopen"}){return(await apiRequest<ApiEnvelope<AdminAdmission>>(`/api/v1/admin/admissions/${id}/review`,{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminGetCourses(){return(await apiRequest<ApiEnvelope<AdminCourse[]>>("/api/v1/admin/courses")).data;}
+export async function adminCreateCourse(input:{code:string;title:string;description:string;duration:string;status:string}){return(await apiRequest<ApiEnvelope<AdminCourse>>("/api/v1/admin/courses",{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminGetEnrollments(){return(await apiRequest<ApiEnvelope<AdminEnrollment[]>>("/api/v1/admin/enrollments")).data;}
+export async function adminEnrollStudents(courseId:string,studentIds:string[]){return(await apiRequest<ApiEnvelope<AdminEnrollment[]>>(`/api/v1/admin/courses/${courseId}/enrollments`,{method:"POST",body:JSON.stringify({studentIds})})).data;}
+export async function adminUpdateEnrollment(id:string,input:{progress:number;status:string;notes:string}){return(await apiRequest<ApiEnvelope<AdminEnrollment>>(`/api/v1/admin/enrollments/${id}`,{method:"PATCH",body:JSON.stringify(input)})).data;}
+export async function adminGetCertificates(){return(await apiRequest<ApiEnvelope<AcademyCertificate[]>>("/api/v1/admin/certificates")).data;}
+export async function adminGenerateCertificate(enrollmentId:string){return(await apiRequest<ApiEnvelope<AcademyCertificate>>(`/api/v1/admin/enrollments/${enrollmentId}/certificate`,{method:"POST",body:"{}"})).data;}
+export async function adminUploadCertificateTemplate(input:{name:string;imageBase64:string;prompt:string}){return(await apiRequest<ApiEnvelope<unknown>>("/api/v1/admin/certificate-templates",{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminGetCampaigns(){return(await apiRequest<ApiEnvelope<AdminCampaign[]>>("/api/v1/admin/notifications")).data;}
+export async function adminCreateCampaign(input:{title:string;message:string;category:string;priority:string;all:boolean;userIds:string[];publishAt?:string;expiresAt?:string}){return(await apiRequest<ApiEnvelope<AdminCampaign>>("/api/v1/admin/notifications",{method:"POST",body:JSON.stringify(input)})).data;}
+export async function getMyCourses(){return(await apiRequest<ApiEnvelope<AdminEnrollment[]>>("/api/v1/courses")).data;}
+export async function getMyCertificates(){return(await apiRequest<ApiEnvelope<AcademyCertificate[]>>("/api/v1/certificates")).data;}
+export async function verifyCertificate(number:string){return(await apiRequest<ApiEnvelope<AcademyCertificate>>(`/api/v1/certificates/verify/${encodeURIComponent(number)}`)).data;}

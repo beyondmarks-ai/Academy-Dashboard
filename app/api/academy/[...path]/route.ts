@@ -43,6 +43,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       headers: {
         "content-type": backendResponse.headers.get("content-type") || "application/json; charset=utf-8",
         "cache-control": "no-store",
+        ...(backendResponse.headers.get("content-disposition") ? { "content-disposition": backendResponse.headers.get("content-disposition")! } : {}),
       },
     });
   } catch {

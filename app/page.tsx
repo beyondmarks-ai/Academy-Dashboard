@@ -14,12 +14,16 @@ import {
   getProfile,
   getProject as getApiProject,
   getProjects,
+  getMyCertificates,
+  getMyCourses,
   markAllNotificationsRead,
   markNotificationRead,
   requestApiAccess,
   type AcademyNotification,
   type AcademyProject,
   type AcademySubscription,
+  type AcademyCertificate,
+  type AdminEnrollment,
 } from "@/lib/academy-api";
 import { loginWithAcademyId, logoutAcademyAccount, signupWithAcademyId } from "@/lib/academy-auth";
 
@@ -286,6 +290,8 @@ export default function Dashboard() {
 }
 
 function DashboardDestination({ userName, authenticated, onSignOut }: { userName: string; authenticated: boolean; onSignOut: () => void }) {
+  const [myCourses,setMyCourses]=useState<AdminEnrollment[]>([]);
+  const [myCertificates,setMyCertificates]=useState<AcademyCertificate[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeItem, setActiveItem] = useState("Overview");
   const [activeApiOption, setActiveApiOption] = useState<"request" | "accessed" | null>(null);
@@ -361,12 +367,13 @@ Finished and ready for integration.`,
   useEffect(() => {
     if (!authenticated) return;
     let active = true;
-    Promise.all([getProjects(), getNotifications(), getApiAccess()])
-      .then(([projectData, notificationData, apiAccess]) => {
+    Promise.all([getProjects(), getNotifications(), getApiAccess(),getMyCourses(),getMyCertificates()])
+      .then(([projectData, notificationData, apiAccess,courseData,certificateData]) => {
         if (!active) return;
         setProjects(projectData.map(projectFromApi));
         setNotifications(notificationData.data.map(notificationFromApi));
         setApiSubscription(apiAccess.subscriptions[0] || null);
+        setMyCourses(courseData);setMyCertificates(certificateData);
         setSyncError("");
       })
       .catch((error) => {
@@ -447,6 +454,11 @@ Finished and ready for integration.`,
       {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
 
       <div className="dashboard-left-stack">
+      <section className="learner-academics-box">
+        <div className="projects-heading"><div><p>ACADEMY PROGRESS</p><h2>My Courses & Certificates</h2></div></div>
+        <div className="learner-course-list">{myCourses.length?myCourses.map(course=><article key={course.id}><div><strong>{course.course_title||course.title}</strong><small>{course.status}</small></div><span>{course.progress}%</span><i><b style={{width:`${course.progress}%`}}/></i></article>):<p>No course enrollments yet.</p>}</div>
+        <div className="learner-certificate-list">{myCertificates.map(certificate=><a key={certificate.id} href={`/api/academy/v1/certificates/${certificate.id}/download`}><span>Certificate</span><strong>{certificate.course_title}</strong><small>{certificate.verification_number}</small></a>)}</div>
+      </section>
       <section className="api-access-box" aria-labelledby="api-access-title">
         <div className="api-access-heading">
           <span className="api-access-icon" aria-hidden="true"><ApiKeyIcon type="key" /></span>

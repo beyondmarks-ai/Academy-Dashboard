@@ -8,6 +8,23 @@ import {
   adminGetStudents,
   adminResetStudentPassword,
   adminSetStudentStatus,
+  adminCreateCampaign,
+  adminCreateCourse,
+  adminGenerateCertificate,
+  adminEnrollStudents,
+  adminGetAdmissions,
+  adminGetCampaigns,
+  adminGetCertificates,
+  adminGetCourses,
+  adminGetEnrollments,
+  adminReviewAdmission,
+  adminUpdateEnrollment,
+  adminUploadCertificateTemplate,
+  type AdminAdmission,
+  type AdminCampaign,
+  type AdminCourse,
+  type AdminEnrollment,
+  type AcademyCertificate,
   type AdminInvitation,
   type AdminStudent,
 } from "@/lib/academy-api";
@@ -22,13 +39,20 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
   const [inviteOpen, setInviteOpen] = useState(false);
   const [resetStudent, setResetStudent] = useState<AdminStudent | null>(null);
   const [actionPending, setActionPending] = useState(false);
+  const [operationsTab,setOperationsTab]=useState<"admissions"|"courses"|"certificates"|"notifications">("admissions");
+  const [admissions,setAdmissions]=useState<AdminAdmission[]>([]);
+  const [courses,setCourses]=useState<AdminCourse[]>([]);
+  const [enrollments,setEnrollments]=useState<AdminEnrollment[]>([]);
+  const [certificates,setCertificates]=useState<AcademyCertificate[]>([]);
+  const [campaigns,setCampaigns]=useState<AdminCampaign[]>([]);
 
   const refresh = async () => {
     setLoading(true);
     try {
-      const [studentData, invitationData] = await Promise.all([adminGetStudents(), adminGetInvitations()]);
+      const [studentData, invitationData,admissionData,courseData,enrollmentData,certificateData,campaignData] = await Promise.all([adminGetStudents(), adminGetInvitations(),adminGetAdmissions(),adminGetCourses(),adminGetEnrollments(),adminGetCertificates(),adminGetCampaigns()]);
       setStudents(studentData);
       setInvitations(invitationData);
+      setAdmissions(admissionData);setCourses(courseData);setEnrollments(enrollmentData);setCertificates(certificateData);setCampaigns(campaignData);
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Administration data could not be loaded.");
@@ -142,6 +166,7 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
             </div>
           )}
         </section>
+        <OperationsPanel tab={operationsTab} setTab={setOperationsTab} admissions={admissions} courses={courses} enrollments={enrollments} certificates={certificates} campaigns={campaigns} students={students} pending={actionPending} setPending={setActionPending} refresh={refresh} setError={setError} />
       </section>
 
       {inviteOpen && <InviteDialog pending={actionPending} onClose={() => setInviteOpen(false)} onSubmit={async (event) => {
@@ -185,6 +210,29 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
       }} />}
     </main>
   );
+}
+
+function OperationsPanel({tab,setTab,admissions,courses,enrollments,certificates,campaigns,students,pending,setPending,refresh,setError}:{tab:"admissions"|"courses"|"certificates"|"notifications";setTab:(value:"admissions"|"courses"|"certificates"|"notifications")=>void;admissions:AdminAdmission[];courses:AdminCourse[];enrollments:AdminEnrollment[];certificates:AcademyCertificate[];campaigns:AdminCampaign[];students:AdminStudent[];pending:boolean;setPending:(value:boolean)=>void;refresh:()=>Promise<void>;setError:(value:string)=>void}){
+  const act=async(task:()=>Promise<unknown>)=>{setPending(true);try{await task();await refresh();setError("");}catch(error){setError(error instanceof Error?error.message:"Operation failed.");}finally{setPending(false);}};
+  return <section className="admin-panel admin-operations">
+    <div className="admin-panel-toolbar"><div className="admin-tabs">
+      {(["admissions","courses","certificates","notifications"] as const).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item[0]!.toUpperCase()+item.slice(1)} <span>{item==="admissions"?admissions.filter(x=>x.status==="pending").length:item==="courses"?courses.length:item==="certificates"?certificates.length:campaigns.length}</span></button>)}
+    </div></div>
+    {tab==="admissions"&&<div className="admin-ops-grid">{admissions.map(item=><AdmissionCard key={item.id} item={item} pending={pending} act={act}/>)}</div>}
+    {tab==="courses"&&<><form className="admin-inline-form" onSubmit={event=>{event.preventDefault();const data=new FormData(event.currentTarget);void act(()=>adminCreateCourse({code:String(data.get("code")),title:String(data.get("title")),description:String(data.get("description")),duration:String(data.get("duration")),status:"active"}));event.currentTarget.reset();}}><input name="code" placeholder="Course code" required/><input name="title" placeholder="Course title" required/><input name="duration" placeholder="Duration"/><input name="description" placeholder="Short description"/><button disabled={pending}>Create course</button></form><div className="admin-ops-grid">{courses.map(course=><article className="admin-op-card" key={course.id}><span>COURSE · {course.code}</span><h3>{course.title}</h3><p>{course.description||"No description"}</p><footer>{course.enrollment_count} enrolled · {course.completion_count} completed</footer><select defaultValue="" onChange={event=>{if(event.target.value)void act(()=>adminEnrollStudents(course.id,[event.target.value]));event.target.value="";}}><option value="">Enroll approved student…</option>{students.filter(x=>x.status==="active").map(x=><option key={x.id} value={x.id}>{x.full_name}</option>)}</select></article>)}</div><h3 className="admin-subheading">Enrollments</h3><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Student</th><th>Course</th><th>Progress</th><th>Status</th><th>Action</th></tr></thead><tbody>{enrollments.map(e=><tr key={e.id}><td>{e.student_name}</td><td>{e.course_title}</td><td>{e.progress}%</td><td>{e.status}</td><td><button disabled={pending} onClick={()=>void act(()=>adminUpdateEnrollment(e.id,{progress:100,status:"completed",notes:e.notes||""}))}>Mark complete</button>{e.status==="completed"&&<button disabled={pending} onClick={()=>void act(()=>adminGenerateCertificate(e.id))}>Generate certificate</button>}</td></tr>)}</tbody></table></div></>}
+    {tab==="certificates"&&<><TemplateUpload pending={pending} act={act}/><div className="admin-ops-grid">{certificates.map(c=><article className="admin-op-card" key={c.id}><span>{c.status}</span><h3>{c.course_title}</h3><code>{c.verification_number}</code><footer>{new Date(c.completion_date).toLocaleDateString()}</footer></article>)}</div></>}
+    {tab==="notifications"&&<><form className="admin-campaign-form" onSubmit={event=>{event.preventDefault();const data=new FormData(event.currentTarget);void act(()=>adminCreateCampaign({title:String(data.get("title")),message:String(data.get("message")),category:String(data.get("category")),priority:String(data.get("priority")),all:true,userIds:[]}));event.currentTarget.reset();}}><input name="title" placeholder="Notification title" required/><textarea name="message" placeholder="Full message" required/><input name="category" placeholder="Category" defaultValue="Academy update"/><select name="priority"><option value="normal">Normal</option><option value="important">Important</option><option value="urgent">Urgent</option></select><button disabled={pending}>Send to all active users</button></form><div className="admin-ops-grid">{campaigns.map(c=><article className="admin-op-card" key={c.id}><span>{c.priority} · {c.category}</span><h3>{c.title}</h3><p>{c.message}</p><footer>{c.read_count}/{c.recipient_count} read</footer></article>)}</div></>}
+  </section>;
+}
+
+function AdmissionCard({item,pending,act}:{item:AdminAdmission;pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){
+  const [number,setNumber]=useState(item.admission_number||`BM-${new Date().getFullYear()}-`);
+  const [reason,setReason]=useState("");
+  return <article className="admin-op-card"><span>{item.status.toUpperCase()}</span><h3>{item.full_name}</h3><p>{item.academy_id}<br/>Signup ID: {item.admission_id}</p>{item.status==="pending"&&<><input value={number} onChange={e=>setNumber(e.target.value.toUpperCase())} placeholder="BM-2026-0001"/><div className="admin-row-actions"><button disabled={pending} className="success" onClick={()=>void act(()=>adminReviewAdmission(item.id,{decision:"approve",admissionNumber:number}))}>Approve</button><input value={reason} onChange={e=>setReason(e.target.value)} placeholder="Rejection reason"/><button disabled={pending||reason.length<3} className="danger" onClick={()=>void act(()=>adminReviewAdmission(item.id,{decision:"reject",reason}))}>Reject</button></div></>}{item.status==="rejected"&&<button disabled={pending} onClick={()=>void act(()=>adminReviewAdmission(item.id,{decision:"reopen"}))}>Reopen application</button>}</article>;
+}
+
+function TemplateUpload({pending,act}:{pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){
+  return <form className="admin-inline-form" onSubmit={event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form),file=data.get("template") as File;if(!file?.size)return;const reader=new FileReader();reader.onload=()=>void act(()=>adminUploadCertificateTemplate({name:String(data.get("name")),prompt:String(data.get("prompt")),imageBase64:String(reader.result)}));reader.readAsDataURL(file);}}><input name="name" defaultValue="Beyond Marks Completion Certificate" required/><input name="template" type="file" accept="image/png" required/><input name="prompt" defaultValue="Use the supplied official Beyond Marks certificate template."/><button disabled={pending}>Upload certificate template</button></form>;
 }
 
 function InviteDialog({ pending, onClose, onSubmit }: { pending: boolean; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
