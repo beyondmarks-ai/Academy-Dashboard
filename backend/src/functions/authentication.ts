@@ -12,6 +12,7 @@ import {
   normalizeAcademyId,
   verifyPassword,
 } from "../security.js";
+import { beginMfaSetup, createMfaChallenge, verifyMfa } from "../mfa.js";
 
 const passwordSchema = z.string()
   .min(12, "Password must contain at least 12 characters.")
@@ -103,6 +104,9 @@ async function signup(request: HttpRequest, context: InvocationContext): Promise
     if (profile.status === "pending") {
       return json(202, { data: { profile: publicProfile(profile), session: null }, requestId });
     }
+    if (profile.role === "admin") {
+      return json(202, { data: { profile: publicProfile(profile), session: null, mfa: await createMfaChallenge(profile.id) }, requestId });
+    }
     const session = await createSession(profile.id, request);
     return json(201, { data: { profile: publicProfile(profile), session }, requestId });
   } catch (error) {
@@ -148,6 +152,9 @@ async function login(request: HttpRequest, context: InvocationContext): Promise<
     }
 
     await query(`UPDATE auth_credentials SET failed_attempts = 0, locked_until = NULL WHERE user_id = $1`, [account.id]);
+    if (account.role === "admin") {
+      return json(202, { data: { profile: publicProfile(account), session: null, mfa: await createMfaChallenge(account.id) }, requestId });
+    }
     const session = await createSession(account.id, request);
     await query(`
       INSERT INTO audit_events (actor_id, action, entity_type, entity_id, request_id)
@@ -176,3 +183,10 @@ async function logout(request: HttpRequest, context: InvocationContext): Promise
 app.http("academySignup", { route: "v1/auth/signup", methods: ["POST"], authLevel: "anonymous", handler: signup });
 app.http("academyLogin", { route: "v1/auth/login", methods: ["POST"], authLevel: "anonymous", handler: login });
 app.http("academyLogout", { route: "v1/auth/logout", methods: ["POST"], authLevel: "anonymous", handler: logout });
+
+const challengeSchema=z.object({challengeToken:z.string().min(20)});
+const verifyMfaSchema=challengeSchema.extend({code:z.string().min(6).max(32)});
+async function mfaSetup(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{try{const input=await parseJson(request,challengeSchema);return json(200,{data:await beginMfaSetup(input.challengeToken),requestId:context.invocationId});}catch(error){return errorResponse(error,context.invocationId);}}
+async function mfaVerify(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{try{const input=await parseJson(request,verifyMfaSchema);return json(200,{data:await verifyMfa(input.challengeToken,input.code,request),requestId:context.invocationId});}catch(error){return errorResponse(error,context.invocationId);}}
+app.http("academyMfaSetup",{route:"v1/auth/mfa-setup",methods:["POST"],authLevel:"anonymous",handler:mfaSetup});
+app.http("academyMfaVerify",{route:"v1/auth/mfa-verify",methods:["POST"],authLevel:"anonymous",handler:mfaVerify});

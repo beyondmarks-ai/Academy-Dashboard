@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE = "bm_session";
-const allowedActions = new Set(["login", "signup", "logout"]);
+const allowedActions = new Set(["login", "signup", "logout", "mfa-setup", "mfa-verify"]);
 
 function backendBaseUrl() {
   const value = process.env.ACADEMY_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -47,10 +47,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
     if (backendResponse.status === 202 && payload?.data?.profile?.status === "pending") {
       return NextResponse.json({ data: payload.data.profile, requestId: payload.requestId }, { status: 202 });
     }
+    if (payload?.data?.mfa?.required) {
+      return NextResponse.json({ data: { profile: payload.data.profile, mfa: payload.data.mfa }, requestId: payload.requestId }, { status: 202 });
+    }
+    if (action === "mfa-setup") {
+      return NextResponse.json({ data: payload.data, requestId: payload.requestId });
+    }
     if (!session?.token || !session?.maxAge) {
       return NextResponse.json({ error: { message: "The authentication response was incomplete." } }, { status: 502 });
     }
-    const response = NextResponse.json({ data: payload.data.profile, requestId: payload.requestId }, { status: backendResponse.status });
+    const response = NextResponse.json({ data: action === "mfa-verify" ? { profile: payload.data.profile, recoveryCodes: payload.data.recoveryCodes } : payload.data.profile, requestId: payload.requestId }, { status: backendResponse.status });
     response.cookies.set(SESSION_COOKIE, session.token, {
       httpOnly: true,
       sameSite: "lax",

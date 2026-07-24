@@ -25,7 +25,7 @@ import {
   type AcademyCertificate,
   type AdminEnrollment,
 } from "@/lib/academy-api";
-import { loginWithAcademyId, logoutAcademyAccount, signupWithAcademyId } from "@/lib/academy-auth";
+import { beginAdminMfaSetup, loginWithAcademyId, logoutAcademyAccount, signupWithAcademyId, verifyAdminMfa, type MfaChallenge } from "@/lib/academy-auth";
 
 type AuthMode = "login" | "signup" | null;
 type NotificationItem = { id: number | string; title: string; message: string; fullMessage: string; time: string; category: string; unread: boolean };
@@ -65,6 +65,9 @@ export default function Dashboard() {
   const [authenticated, setAuthenticated] = useState(false);
   const [authPending, setAuthPending] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [mfaChallenge,setMfaChallenge]=useState<MfaChallenge|null>(null);
+  const [mfaSetup,setMfaSetup]=useState<{qrDataUrl:string;manualKey:string}|null>(null);
+  const [recoveryCodes,setRecoveryCodes]=useState<string[]>([]);
   const openingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const beginAuth = (mode: Exclude<AuthMode, null>, forAdmin = false) => {
@@ -85,6 +88,7 @@ export default function Dashboard() {
     setOpeningMode(null);
     setAuthMode(null);
     setAdminSignIn(false);
+    setMfaChallenge(null);setMfaSetup(null);setRecoveryCodes([]);
   };
 
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -98,7 +102,7 @@ export default function Dashboard() {
       if (authMode === "signup" && password !== String(formData.get("confirmPassword") || "")) {
         throw new Error("Passwords do not match.");
       }
-      const profile = authMode === "signup"
+      const result = authMode === "signup"
         ? await signupWithAcademyId({
             fullName: String(formData.get("name") || "").trim(),
             academyId,
@@ -106,6 +110,12 @@ export default function Dashboard() {
             password,
           })
         : await loginWithAcademyId(academyId, password);
+      if(result&&"mfa" in result){
+        setMfaChallenge(result.mfa);
+        if(result.mfa.setupRequired)setMfaSetup(await beginAdminMfaSetup(result.mfa.challengeToken));
+        return;
+      }
+      const profile=result;
       if (profile?.status === "pending") {
         setAuthError("Registration submitted successfully. An Academy administrator must approve your account before you can sign in.");
         return;
@@ -232,6 +242,17 @@ export default function Dashboard() {
             <h2 id="auth-title">{adminSignIn ? "Administrator sign in" : authMode === "login" ? "Welcome back" : "Begin your journey"}</h2>
             <p>{adminSignIn ? "Sign in to the single protected Academy administrator account." : authMode === "login" ? "Enter your Beyond Marks Academy ID to continue." : "Create your private Academy account with a valid Admission ID."}</p>
 
+            {mfaChallenge ? <form className="mfa-form" onSubmit={async event=>{
+              event.preventDefault();setAuthPending(true);setAuthError("");
+              try{const data=new FormData(event.currentTarget);const verified=await verifyAdminMfa(mfaChallenge.challengeToken,String(data.get("code")||""));setUserName(verified.profile.full_name);setUserRole("admin");if(verified.recoveryCodes?.length){setRecoveryCodes(verified.recoveryCodes);return;}setAuthenticated(true);closeAuth();setDashboardReady(true);}catch(error){setAuthError(error instanceof Error?error.message:"Authenticator verification failed.");}finally{setAuthPending(false);}
+            }}>
+              {recoveryCodes.length?<div className="mfa-recovery"><strong>Save your recovery codes</strong><p>Each code works once. Store them somewhere private before continuing.</p><div>{recoveryCodes.map(code=><code key={code}>{code}</code>)}</div><button className="modal-submit" type="button" onClick={()=>{setRecoveryCodes([]);setAuthenticated(true);setUserRole("admin");closeAuth();setDashboardReady(true);}}>I saved these codes</button></div>:<>
+                {mfaSetup?<><p className="mfa-instruction">Scan this QR code using Google Authenticator, Microsoft Authenticator, or Authy.</p><img className="mfa-qr" src={mfaSetup.qrDataUrl} alt="Authenticator setup QR code"/><details><summary>Can’t scan the QR?</summary><code>{mfaSetup.manualKey}</code></details></>:<p className="mfa-instruction">Enter the current six-digit code from your authenticator app.</p>}
+                <label><span>Authenticator code</span><input name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}|[A-Fa-f0-9-]{13}" placeholder="000000" required autoFocus/></label>
+                {authError&&<p className="auth-form-error" role="alert">{authError}</p>}
+                <button className="modal-submit" disabled={authPending}>{authPending?"Verifying…":mfaSetup?"Verify & activate MFA":"Verify & sign in"}</button>
+              </>}
+            </form>:<>
             <form onSubmit={handleAuthSubmit}>
               {authMode === "signup" && (
                 <>
@@ -281,6 +302,7 @@ export default function Dashboard() {
                 {authMode === "login" ? "Sign up" : "Log in"}
               </button>
             </div>
+            </>}
             </section>
           </div>
         </div>
