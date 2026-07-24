@@ -102,6 +102,10 @@ export default function Dashboard() {
             password,
           })
         : await loginWithAcademyId(academyId, password);
+      if (profile?.status === "pending") {
+        setAuthError("Registration submitted successfully. An Academy administrator must approve your account before you can sign in.");
+        return;
+      }
       setUserName(profile?.full_name || profile?.username || "Student");
       setUserRole(profile?.role === "admin" ? "admin" : profile?.role === "developer" ? "developer" : "student");
       setAuthenticated(true);

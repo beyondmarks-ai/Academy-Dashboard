@@ -38,3 +38,15 @@ export async function downloadText(blobName: string) {
   for await (const chunk of response.readableStreamBody) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   return Buffer.concat(chunks).toString("utf8");
 }
+
+export async function uploadCertificateFile(blobName: string, data: Buffer, contentType: string) {
+  const container = getBlobServiceClient().getContainerClient(getConfig().CERTIFICATE_FILES_CONTAINER);
+  await container.createIfNotExists();
+  await container.getBlockBlobClient(blobName).uploadData(data, { blobHTTPHeaders: { blobContentType: contentType } });
+  return blobName;
+}
+
+export async function downloadCertificateFile(blobName: string) {
+  const response = await getBlobServiceClient().getContainerClient(getConfig().CERTIFICATE_FILES_CONTAINER).getBlobClient(blobName).downloadToBuffer();
+  return response;
+}

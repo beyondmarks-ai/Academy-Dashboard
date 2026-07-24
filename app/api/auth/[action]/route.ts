@@ -44,6 +44,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ac
     }
 
     const session = payload?.data?.session;
+    if (backendResponse.status === 202 && payload?.data?.profile?.status === "pending") {
+      return NextResponse.json({ data: payload.data.profile, requestId: payload.requestId }, { status: 202 });
+    }
     if (!session?.token || !session?.maxAge) {
       return NextResponse.json({ error: { message: "The authentication response was incomplete." } }, { status: 502 });
     }

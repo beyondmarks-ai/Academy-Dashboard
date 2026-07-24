@@ -87,7 +87,7 @@ async function signup(request: HttpRequest, context: InvocationContext): Promise
         id: string; academy_id: string; username: string; full_name: string; admission_id: string; role: string; status: string;
       }>(`
         INSERT INTO user_profiles (academy_id, username, full_name, admission_id, role, status)
-        VALUES ($1, $2, $3, $4, $5, 'active')
+        VALUES ($1, $2, $3, $4, $5, CASE WHEN $5 = 'admin' THEN 'active' ELSE 'pending' END)
         RETURNING id, academy_id, username, full_name, admission_id, role, status
       `, [academyId, username, input.fullName, input.admissionId, invite.rows[0].assigned_role]);
       const user = created.rows[0]!;
@@ -100,6 +100,9 @@ async function signup(request: HttpRequest, context: InvocationContext): Promise
       return user;
     });
 
+    if (profile.status === "pending") {
+      return json(202, { data: { profile: publicProfile(profile), session: null }, requestId });
+    }
     const session = await createSession(profile.id, request);
     return json(201, { data: { profile: publicProfile(profile), session }, requestId });
   } catch (error) {
