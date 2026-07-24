@@ -453,18 +453,24 @@ Finished and ready for integration.`,
         </div>
         <p className="sidebar-section-label">LEARNING SPACE</p>
         <nav aria-label="Dashboard navigation">
-          {menuItems.map((item) => (
+          {menuItems.map((item) => {
+            const comingSoon = item !== "Overview";
+            return (
             <button
               type="button"
               key={item}
-              className={activeItem === item ? "active" : ""}
-              onClick={() => { setActiveItem(item); setSidebarOpen(false); }}
+              className={`${activeItem === item ? "active" : ""} ${comingSoon ? "coming-soon" : ""}`}
+              disabled={comingSoon}
+              aria-disabled={comingSoon}
+              title={comingSoon ? `${item} — coming soon` : undefined}
+              onClick={() => { if (!comingSoon) { setActiveItem(item); setSidebarOpen(false); } }}
             >
               <SidebarIcon name={item} />
               <span>{item}</span>
+              {comingSoon && <em>Coming soon</em>}
               <i aria-hidden="true">›</i>
             </button>
-          ))}
+          )})}
         </nav>
         <div className="sidebar-account">
           <span>{userName.slice(0, 1).toUpperCase()}</span>

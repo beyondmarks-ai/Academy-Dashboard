@@ -555,6 +555,10 @@
 .dashboard-sidebar nav button svg { width: 19px; height: 19px; flex: none; }
 .dashboard-sidebar nav button span { font-size: 12px; font-weight: 500; }
 .dashboard-sidebar nav button i { margin-left: auto; color: rgba(214, 170, 98, .48); font-size: 18px; font-style: normal; }
+.dashboard-sidebar nav button em { margin-left:auto;padding:4px 7px;border:1px solid rgba(214,170,98,.18);border-radius:999px;color:#927a55;background:rgba(214,170,98,.045);font-size:7px;font-style:normal;font-weight:800;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap; }
+.dashboard-sidebar nav button.coming-soon { cursor:not-allowed;opacity:.55; }
+.dashboard-sidebar nav button.coming-soon i { display:none; }
+.dashboard-sidebar nav button.coming-soon:hover { color:#8fa3b2;background:transparent;transform:none; }
 
 .sidebar-account {
   position: relative;
