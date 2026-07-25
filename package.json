@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "vinext build",
+    "postbuild": "node scripts/prepare-sites-build.mjs",
     "build:next": "next build",
     "start": "vinext start",
     "typecheck": "tsc --noEmit"
