@@ -16,6 +16,7 @@ out/
 *.log
 tsconfig.tsbuildinfo
 .vercel/
+.wrangler/
 backend/dist/
 backend/local.settings.json
 
