@@ -1382,16 +1382,6 @@
   cursor: wait;
 }
 
-.skip-button {
-  color: #e2b86f;
-  border-color: rgba(226, 184, 111, .5) !important;
-  background: rgba(214, 170, 98, .07);
-}
-
-.skip-button:hover {
-  background: rgba(214, 170, 98, .14);
-}
-
 .login-button {
   color: #fff;
   background: transparent;

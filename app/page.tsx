@@ -136,13 +136,6 @@ export default function Dashboard() {
     }
   };
 
-  const enterDashboard = () => {
-    if (openingMode || authMode) return;
-    setUserName("Student");
-    setUserRole("student");
-    setDashboardReady(true);
-  };
-
   const leaveDashboard = async () => {
     if (authenticated) {
       try { await logoutAcademyAccount(); } catch { /* The local session is cleared by expiry if Azure is unavailable. */ }
@@ -221,7 +214,6 @@ export default function Dashboard() {
       </section>
 
       <footer className="auth-footer">
-        <button type="button" className="skip-button" disabled={Boolean(openingMode)} onClick={enterDashboard}>Skip for now</button>
         <button type="button" className="login-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Log in</button>
         <button type="button" className="signup-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("signup")}>Sign up</button>
         <button type="button" className="admin-signin-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login", true)}>
