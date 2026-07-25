@@ -236,20 +236,32 @@ function OperationsPanel({tab,setTab,admissions,apiRequests,courses,enrollments,
 function ApiRequestCard({item,pending,act}:{item:AdminApiRequest;pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){
   const [provider,setProvider]=useState(item.provider||"OpenAI");
   const [productName,setProductName]=useState(item.product_name||item.capabilities[0]||"OpenAI 4o model API key");
-  const [keyLastFour,setKeyLastFour]=useState(item.key_last_four||"");
+  const [apiKey,setApiKey]=useState("");
+  const [showApiKey,setShowApiKey]=useState(false);
+  const [quotaLimit,setQuotaLimit]=useState(String(item.quota_limit||10000));
+  const [quotaUnit,setQuotaUnit]=useState<"requests"|"tokens"|"images"|"minutes">(item.quota_unit||"requests");
+  const [expiresAt,setExpiresAt]=useState(item.expires_at?new Date(item.expires_at).toISOString().slice(0,16):new Date(Date.now()+30*86400000).toISOString().slice(0,16));
   const [notes,setNotes]=useState(item.review_notes||"");
   const requestedAt=new Date(item.created_at).toLocaleString(undefined,{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"});
+  const canProvision=item.status==="pending"||item.status==="approved";
+  const submitProvision=()=> {
+    const task=act(()=>adminReviewApiRequest(item.id,{decision:"approve",provider:provider.trim(),productName:productName.trim(),apiKey:apiKey.trim(),quotaLimit:Number(quotaLimit),quotaUnit,expiresAt:new Date(expiresAt).toISOString(),notes:notes.trim()}));
+    void task.finally(()=>{setApiKey("");setShowApiKey(false);});
+  };
   return <article className={`admin-op-card api-request-card status-${item.status}`}>
     <div className="api-request-heading"><span className={`admin-status ${item.status}`}><i/>{item.status}</span><time>{requestedAt}</time></div>
     <h3>{item.full_name}</h3>
     <p className="api-request-identity">{item.academy_id}{item.admission_number&&<><br/>Admission no. {item.admission_number}</>}</p>
     <div className="api-capability-list">{item.capabilities.map(capability=><span key={capability}>{capability}</span>)}</div>
     {item.other_requirements&&<div className="api-request-message"><strong>Student requirements</strong><p>{item.other_requirements}</p></div>}
-    {item.status==="pending"?<div className="api-review-form">
-      <div className="api-review-fields"><label><span>Provider</span><input value={provider} onChange={event=>setProvider(event.target.value)} placeholder="OpenAI"/></label><label><span>Issued access name</span><input value={productName} onChange={event=>setProductName(event.target.value)} placeholder="Model API key"/></label><label><span>Key last 4</span><input value={keyLastFour} onChange={event=>setKeyLastFour(event.target.value.replace(/[^a-z0-9]/gi,"").slice(0,4))} placeholder="A7X2" maxLength={4}/></label></div>
+    {canProvision?<div className="api-review-form">
+      {item.status==="approved"&&<div className="api-existing-credential"><strong>Credential active</strong><span>{item.provider} · ending {item.key_last_four}</span><small>Enter a new key below only when rotating or updating this access.</small></div>}
+      <div className="api-review-fields"><label><span>Provider</span><input value={provider} onChange={event=>setProvider(event.target.value)} placeholder="OpenAI"/></label><label><span>Issued access name</span><input value={productName} onChange={event=>setProductName(event.target.value)} placeholder="Model API key"/></label></div>
+      <label><span>Full API key <small>Encrypted immediately after submission</small></span><div className="admin-secret-input"><input type={showApiKey?"text":"password"} value={apiKey} onChange={event=>setApiKey(event.target.value)} placeholder="Paste the complete API key"/><button type="button" onClick={()=>setShowApiKey(value=>!value)}>{showApiKey?"Hide":"Show"}</button></div></label>
+      <div className="api-limit-fields"><label><span>Usage limit</span><input type="number" min="1" step="1" value={quotaLimit} onChange={event=>setQuotaLimit(event.target.value)}/></label><label><span>Limit unit</span><select value={quotaUnit} onChange={event=>setQuotaUnit(event.target.value as typeof quotaUnit)}><option value="requests">Requests</option><option value="tokens">Tokens</option><option value="images">Images</option><option value="minutes">Minutes</option></select></label><label><span>Access expires</span><input type="datetime-local" value={expiresAt} onChange={event=>setExpiresAt(event.target.value)}/></label></div>
       <label><span>Administrator note</span><input value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Approval note or rejection reason"/></label>
-      <div className="admin-row-actions api-review-actions"><button className="success" disabled={pending||provider.trim().length<2||productName.trim().length<2||keyLastFour.length!==4} onClick={()=>void act(()=>adminReviewApiRequest(item.id,{decision:"approve",provider:provider.trim(),productName:productName.trim(),keyLastFour,notes:notes.trim()}))}>Approve &amp; issue</button><button className="danger" disabled={pending||notes.trim().length<3} onClick={()=>void act(()=>adminReviewApiRequest(item.id,{decision:"reject",notes:notes.trim()}))}>Reject request</button></div>
-    </div>:<div className="api-review-summary"><strong>{item.status==="approved"?item.product_name:"Administrator decision"}</strong><p>{item.status==="approved"?`${item.provider} · Key ending ${item.key_last_four}`:item.review_notes||"No review note was added."}</p></div>}
+      <div className="admin-row-actions api-review-actions"><button className="success" disabled={pending||provider.trim().length<2||productName.trim().length<2||apiKey.trim().length<8||!Number.isSafeInteger(Number(quotaLimit))||Number(quotaLimit)<1||!expiresAt} onClick={submitProvision}>{item.status==="approved"?"Rotate & update":"Approve & issue"}</button>{item.status==="pending"&&<button className="danger" disabled={pending||notes.trim().length<3} onClick={()=>void act(()=>adminReviewApiRequest(item.id,{decision:"reject",notes:notes.trim()}))}>Reject request</button>}</div>
+    </div>:<div className="api-review-summary"><strong>Administrator decision</strong><p>{item.review_notes||"No review note was added."}</p></div>}
   </article>;
 }
 

@@ -14,6 +14,7 @@ const configSchema = z.object({
   AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: z.string().url().optional(),
   PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   MFA_ENCRYPTION_KEY: z.string().optional(),
+  API_CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
   AUTH_DISABLED: z.enum(["true", "false"]).default("false"),
   FRONTEND_ORIGIN: z.string().default("http://localhost:3000"),
 });

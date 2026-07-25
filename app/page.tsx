@@ -19,6 +19,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   requestApiAccess,
+  revealApiCredential,
   type AcademyNotification,
   type AcademyProject,
   type AcademySubscription,
@@ -321,6 +322,10 @@ function DashboardDestination({ userName, authenticated, onSignOut }: { userName
   const [apiRequestOpen, setApiRequestOpen] = useState(false);
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false);
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [revealedApiKey, setRevealedApiKey] = useState("");
+  const [apiKeyPending, setApiKeyPending] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState("");
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiSubscription, setApiSubscription] = useState<AcademySubscription | null>(null);
   const [selectedApiModels, setSelectedApiModels] = useState<string[]>([]);
   const [customApiRequirement, setCustomApiRequirement] = useState("");
@@ -415,6 +420,41 @@ Finished and ready for integration.`,
     }
   };
 
+  const closeApiKeyModal = () => {
+    setApiKeyModalOpen(false);
+    setApiKeyVisible(false);
+    setRevealedApiKey("");
+    setApiKeyError("");
+    setApiKeyCopied(false);
+  };
+
+  const toggleApiKeyVisibility = async () => {
+    if (apiKeyVisible) {
+      setApiKeyVisible(false);
+      setRevealedApiKey("");
+      return;
+    }
+    if (!authenticated) {
+      setRevealedApiKey("bm-demo-credential-4479");
+      setApiKeyVisible(true);
+      return;
+    }
+    if (!apiSubscription) {
+      setApiKeyError("No active API credential has been issued yet.");
+      return;
+    }
+    setApiKeyPending(true);
+    setApiKeyError("");
+    try {
+      setRevealedApiKey(await revealApiCredential(apiSubscription.id));
+      setApiKeyVisible(true);
+    } catch (error) {
+      setApiKeyError(error instanceof Error ? error.message : "The credential could not be revealed.");
+    } finally {
+      setApiKeyPending(false);
+    }
+  };
+
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -422,6 +462,8 @@ Finished and ready for integration.`,
         setSelectedNotification(null);
         setApiRequestOpen(false);
         setApiKeyModalOpen(false);
+        setApiKeyVisible(false);
+        setRevealedApiKey("");
         setProjectComposerOpen(false);
         setSelectedProject(null);
       }
@@ -499,7 +541,7 @@ Finished and ready for integration.`,
             <div><strong>Request API Key</strong><small>Submit a new access request</small></div>
             <i>›</i>
           </button>
-          <button type="button" className={activeApiOption === "accessed" ? "active" : ""} onClick={() => { setActiveApiOption("accessed"); setApiKeyVisible(false); setApiKeyModalOpen(true); }}>
+          <button type="button" className={activeApiOption === "accessed" ? "active" : ""} onClick={() => { setActiveApiOption("accessed"); setApiKeyVisible(false); setRevealedApiKey(""); setApiKeyError(""); setApiKeyCopied(false); setApiKeyModalOpen(true); }}>
             <span><ApiKeyIcon type="shield" /></span>
             <div><strong>Accessed API Key</strong><small>View your approved key</small></div>
             <i>›</i>
@@ -550,9 +592,9 @@ Finished and ready for integration.`,
       </div>
 
       {apiKeyModalOpen && (
-        <div className="api-key-modal-layer" role="presentation" onMouseDown={() => setApiKeyModalOpen(false)}>
+        <div className="api-key-modal-layer" role="presentation" onMouseDown={closeApiKeyModal}>
           <section className="api-key-modal" role="dialog" aria-modal="true" aria-labelledby="accessed-key-name" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="project-modal-close" type="button" aria-label="Close accessed API key" onClick={() => setApiKeyModalOpen(false)}>×</button>
+            <button className="project-modal-close" type="button" aria-label="Close accessed API key" onClick={closeApiKeyModal}>×</button>
             <span className="api-key-modal-kicker">SECURE DEVELOPER ACCESS</span>
             <h2>Accessed API key</h2>
             <p>View and manage your approved model credential.</p>
@@ -567,7 +609,7 @@ Finished and ready for integration.`,
               <div className="accessed-key-value">
                 <code aria-label={apiKeyVisible ? "Visible API key" : "Hidden API key"}>
                   {apiKeyVisible
-                    ? apiSubscription ? `Managed credential ending ${apiSubscription.key_last_four || "unknown"}` : authenticated ? "No active credential" : "Demo credential ending 4479"
+                    ? revealedApiKey
                     : `•••• •••• •••• ${apiSubscription?.key_last_four || (authenticated ? "—" : "4479")}`}
                 </code>
                 <button
@@ -575,18 +617,27 @@ Finished and ready for integration.`,
                   aria-label={apiKeyVisible ? "Hide API key" : "Show API key"}
                   aria-pressed={apiKeyVisible}
                   title={apiKeyVisible ? "Hide API key" : "Show API key"}
-                  onClick={() => setApiKeyVisible((visible) => !visible)}
+                  disabled={apiKeyPending}
+                  onClick={() => void toggleApiKeyVisibility()}
                 >
                   <VisibilityIcon hidden={apiKeyVisible} />
                 </button>
+                <button type="button" className="api-key-copy" disabled={!revealedApiKey} onClick={() => { void navigator.clipboard.writeText(revealedApiKey).then(()=>{setApiKeyCopied(true);window.setTimeout(()=>setApiKeyCopied(false),1800);}).catch(()=>setApiKeyError("Copy failed. Select the key and copy it manually.")); }}>{apiKeyCopied?"Copied":"Copy"}</button>
               </div>
+              {apiKeyError&&<p className="api-key-error" role="alert">{apiKeyError}</p>}
               <div className="accessed-key-meta">
                 <span>{apiSubscription ? `Created ${new Date(apiSubscription.created_at).toLocaleDateString()}` : authenticated ? "Awaiting approval" : "Demo only"}</span>
-                <span>{apiSubscription?.key_last_four ? `Key ending ${apiSubscription.key_last_four}` : "No secret exposed"}</span>
+                <span>{apiSubscription?.credential_available ? "Encrypted credential ready" : "Awaiting provisioning"}</span>
               </div>
+              {apiSubscription&&<div className="api-quota-panel">
+                <div className="api-quota-heading"><div><small>ASSIGNED USAGE LIMIT</small><strong>{apiSubscription.quota_limit?.toLocaleString()||"Unlimited"} <span>{apiSubscription.quota_unit}</span></strong></div><span className={apiSubscription.expires_at&&new Date(apiSubscription.expires_at)<=new Date()?"expired":"active"}>{apiSubscription.expires_at&&new Date(apiSubscription.expires_at)<=new Date()?"Expired":"Active"}</span></div>
+                <div className="api-quota-track"><i style={{width:`${apiSubscription.quota_limit?Math.min(100,(apiSubscription.usage_count/apiSubscription.quota_limit)*100):0}%`}}/></div>
+                <div className="api-quota-meta"><span>{apiSubscription.usage_count.toLocaleString()} recorded usage</span><span>{apiSubscription.expires_at?`Expires ${new Date(apiSubscription.expires_at).toLocaleString()}`:"No expiry"}</span></div>
+                <p>Usage is enforced only when this credential is routed through an Academy gateway or configured with the same quota at the provider.</p>
+              </div>}
             </article>
-            <div className="api-key-security-note"><ApiKeyIcon type="shield" /><p><strong>Secrets stay protected</strong><span>The dashboard stores and returns only credential metadata and the last four characters.</span></p></div>
-            <button className="api-key-modal-done" type="button" onClick={() => setApiKeyModalOpen(false)}>Done</button>
+            <div className="api-key-security-note"><ApiKeyIcon type="shield" /><p><strong>Encrypted and owner-only</strong><span>The full key is encrypted at rest, revealed only on request, and removed from this page when the modal closes.</span></p></div>
+            <button className="api-key-modal-done" type="button" onClick={closeApiKeyModal}>Done</button>
           </section>
         </div>
       )}

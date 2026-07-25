@@ -2,7 +2,8 @@ import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } 
 import { z } from "zod";
 import { ensureProfile, requireAuth } from "../auth.js";
 import { query } from "../db.js";
-import { errorResponse, json, parseJson } from "../http.js";
+import { errorResponse, HttpError, json, parseJson } from "../http.js";
+import { decryptApiCredential } from "../credentialCrypto.js";
 
 const capability = z.enum([
   "Azure AI Foundry", "Text & Language", "Image Models", "Video Models",
@@ -28,12 +29,47 @@ async function listAccessRequests(request: HttpRequest, context: InvocationConte
       FROM api_access_requests WHERE user_id = $1 ORDER BY created_at DESC
     `, [profile!.id]);
     const subscriptions = await query(`
-      SELECT id, provider, product_name, key_last_four, status, created_at, rotated_at
+      SELECT id, provider, product_name, key_last_four, status,
+        quota_limit::float8 AS quota_limit, quota_unit,
+        usage_count::float8 AS usage_count, expires_at,
+        (encrypted_api_key IS NOT NULL) AS credential_available,
+        created_at, rotated_at
       FROM api_subscriptions WHERE user_id = $1 ORDER BY created_at DESC
     `, [profile!.id]);
     return json(200, { data: { requests: result.rows, subscriptions: subscriptions.rows }, requestId });
   } catch (error) {
     context.error("List API access failed", error);
+    return errorResponse(error, requestId);
+  }
+}
+
+async function revealCredential(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  const requestId = context.invocationId;
+  try {
+    const profile = await ensureProfile(await requireAuth(request));
+    const result = await query<{ encrypted_api_key: string | null; status: string; expires_at: string | null }>(`
+      SELECT encrypted_api_key,status,expires_at FROM api_subscriptions
+      WHERE id=$1 AND user_id=$2
+    `, [request.params.id, profile!.id]);
+    const subscription = result.rows[0];
+    if (!subscription) throw new HttpError(404, "API credential not found.");
+    if (subscription.status !== "active") throw new HttpError(409, "This API credential is no longer active.");
+    if (subscription.expires_at && new Date(subscription.expires_at) <= new Date()) {
+      await query(`UPDATE api_subscriptions SET status='expired' WHERE id=$1`, [request.params.id]);
+      throw new HttpError(410, "This API credential has expired.");
+    }
+    if (!subscription.encrypted_api_key) throw new HttpError(409, "This older access record has not been provisioned with a usable credential yet.");
+    const apiKey = decryptApiCredential(subscription.encrypted_api_key);
+    await query(`
+      UPDATE api_subscriptions SET revealed_at=now(),reveal_count=reveal_count+1 WHERE id=$1
+    `, [request.params.id]);
+    await query(`
+      INSERT INTO audit_events(actor_id,action,entity_type,entity_id,request_id)
+      VALUES($1,'api-credential.revealed','api_subscription',$2,$3)
+    `, [profile!.id, request.params.id, requestId]);
+    return json(200, { data: { apiKey }, requestId });
+  } catch (error) {
+    context.error("Reveal API credential failed", error);
     return errorResponse(error, requestId);
   }
 }
@@ -58,3 +94,4 @@ async function requestAccess(request: HttpRequest, context: InvocationContext): 
 
 app.http("listApiAccess", { route: "v1/api-access", methods: ["GET"], authLevel: "anonymous", handler: listAccessRequests });
 app.http("requestApiAccess", { route: "v1/api-access/requests", methods: ["POST"], authLevel: "anonymous", handler: requestAccess });
+app.http("revealApiCredential", { route: "v1/api-access/subscriptions/{id:guid}/credential", methods: ["POST"], authLevel: "anonymous", handler: revealCredential });

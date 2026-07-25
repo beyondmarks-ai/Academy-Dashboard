@@ -3,13 +3,17 @@ import { z } from "zod";
 import { requireAuth, requireRole } from "../auth.js";
 import { query, transaction } from "../db.js";
 import { errorResponse, HttpError, json, parseJson } from "../http.js";
+import { encryptApiCredential } from "../credentialCrypto.js";
 
 const reviewSchema = z.discriminatedUnion("decision", [
   z.object({
     decision: z.literal("approve"),
     provider: z.string().trim().min(2).max(80),
     productName: z.string().trim().min(2).max(160),
-    keyLastFour: z.string().trim().regex(/^[A-Za-z0-9]{4}$/, "Enter the final four API-key characters."),
+    apiKey: z.string().trim().min(8).max(4000),
+    quotaLimit: z.number().int().positive().max(9_000_000_000_000_000),
+    quotaUnit: z.enum(["requests","tokens","images","minutes"]),
+    expiresAt: z.string().datetime().refine((value) => new Date(value).getTime() > Date.now(), "Credential expiry must be in the future."),
     notes: z.string().trim().max(1000).default(""),
   }),
   z.object({
@@ -31,7 +35,9 @@ async function listApiRequests(request: HttpRequest, context: InvocationContext)
       SELECT request.id, request.user_id, request.capabilities, request.other_requirements,
         request.status, request.review_notes, request.reviewed_at, request.created_at, request.updated_at,
         profile.full_name, profile.academy_id, profile.admission_id, profile.admission_number,
-        subscription.provider, subscription.product_name, subscription.key_last_four,
+        subscription.id AS subscription_id, subscription.provider, subscription.product_name,
+        subscription.key_last_four, subscription.quota_limit::float8 AS quota_limit, subscription.quota_unit,
+        subscription.usage_count::float8 AS usage_count, subscription.expires_at,
         subscription.status AS subscription_status
       FROM api_access_requests request
       JOIN user_profiles profile ON profile.id=request.user_id
@@ -55,7 +61,8 @@ async function reviewApiRequest(request: HttpRequest, context: InvocationContext
       }>(`SELECT id,user_id,status,capabilities FROM api_access_requests WHERE id=$1 FOR UPDATE`, [request.params.id]);
       const accessRequest = existing.rows[0];
       if (!accessRequest) throw new HttpError(404, "API access request not found.");
-      if (accessRequest.status !== "pending") throw new HttpError(409, "This API access request has already been reviewed.");
+      if (input.decision === "reject" && accessRequest.status !== "pending") throw new HttpError(409, "Only pending API access requests can be rejected.");
+      if (input.decision === "approve" && !["pending", "approved"].includes(accessRequest.status)) throw new HttpError(409, "This API access request cannot be provisioned.");
 
       const status = input.decision === "approve" ? "approved" : "rejected";
       const updated = await client.query(`
@@ -67,12 +74,15 @@ async function reviewApiRequest(request: HttpRequest, context: InvocationContext
       if (input.decision === "approve") {
         await client.query(`
           INSERT INTO api_subscriptions
-            (user_id,access_request_id,provider,product_name,key_last_four,status)
-          VALUES($1,$2,$3,$4,upper($5),'active')
+            (user_id,access_request_id,provider,product_name,key_last_four,encrypted_api_key,
+             quota_limit,quota_unit,expires_at,status)
+          VALUES($1,$2,$3,$4,upper(right($5,4)),$6,$7,$8,$9,'active')
           ON CONFLICT(access_request_id) WHERE access_request_id IS NOT NULL
           DO UPDATE SET provider=excluded.provider,product_name=excluded.product_name,
-            key_last_four=excluded.key_last_four,status='active',rotated_at=now()
-        `, [accessRequest.user_id, accessRequest.id, input.provider, input.productName, input.keyLastFour]);
+            key_last_four=excluded.key_last_four,encrypted_api_key=excluded.encrypted_api_key,
+            quota_limit=excluded.quota_limit,quota_unit=excluded.quota_unit,
+            usage_count=0,expires_at=excluded.expires_at,status='active',rotated_at=now()
+        `, [accessRequest.user_id, accessRequest.id, input.provider, input.productName, input.apiKey, encryptApiCredential(input.apiKey), input.quotaLimit, input.quotaUnit, input.expiresAt]);
       }
 
       const title = input.decision === "approve" ? "API access approved" : "API access request update";
@@ -95,7 +105,11 @@ async function reviewApiRequest(request: HttpRequest, context: InvocationContext
         `api-access.${status}`,
         accessRequest.id,
         context.invocationId,
-        JSON.stringify({ notes: input.notes, capabilities: accessRequest.capabilities }),
+        JSON.stringify({
+          notes: input.notes,
+          capabilities: accessRequest.capabilities,
+          ...(input.decision === "approve" ? { quotaLimit: input.quotaLimit, quotaUnit: input.quotaUnit, expiresAt: input.expiresAt } : {}),
+        }),
       ]);
       return updated.rows[0];
     });
