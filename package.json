@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "vinext build",
-    "postbuild": "node scripts/prepare-sites-build.mjs",
+    "build": "next build",
     "build:next": "next build",
-    "start": "vinext start",
+    "build:sites": "vinext build",
+    "postbuild:sites": "node scripts/prepare-sites-build.mjs",
+    "start": "next start",
+    "start:sites": "vinext start",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

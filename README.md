@@ -23,6 +23,22 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). `ACADEMY_API_BASE_URL` is server-only; the Azure API URL and session token are not exposed to browser JavaScript.
 
+## Frontend deployment
+
+The default production commands target standard Next.js hosting such as Hostinger:
+
+```powershell
+npm run build
+npm start
+```
+
+The OpenAI Sites deployment uses the separate Cloudflare-compatible commands:
+
+```powershell
+npm run build:sites
+npm run start:sites
+```
+
 ## Backend
 
 The Azure Functions backend is in `backend/` and targets Node.js 22.
