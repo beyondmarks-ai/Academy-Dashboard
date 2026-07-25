@@ -19,6 +19,8 @@ import {
   adminGetEnrollments,
   adminGetApiRequests,
   adminReviewApiRequest,
+  adminManageApiSubscription,
+  adminGetApiUsage,
   adminReviewAdmission,
   adminUpdateEnrollment,
   adminUploadCertificateTemplate,
@@ -30,6 +32,7 @@ import {
   type AdminInvitation,
   type AdminStudent,
   type AdminApiRequest,
+  type ApiUsageDetails,
 } from "@/lib/academy-api";
 
 type OperationsTab = "admissions"|"apiRequests"|"courses"|"certificates"|"notifications";
@@ -234,35 +237,51 @@ function OperationsPanel({tab,setTab,admissions,apiRequests,courses,enrollments,
 }
 
 function ApiRequestCard({item,pending,act}:{item:AdminApiRequest;pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){
-  const [provider,setProvider]=useState(item.provider||"OpenAI");
-  const [productName,setProductName]=useState(item.product_name||item.capabilities[0]||"OpenAI 4o model API key");
-  const [apiKey,setApiKey]=useState("");
-  const [showApiKey,setShowApiKey]=useState(false);
+  const [productName,setProductName]=useState(item.product_name||"Beyond Marks Foundry Gateway");
+  const [deployments,setDeployments]=useState((item.allowed_deployments||[]).join(", "));
   const [quotaLimit,setQuotaLimit]=useState(String(item.quota_limit||10000));
-  const [quotaUnit,setQuotaUnit]=useState<"requests"|"tokens"|"images"|"minutes">(item.quota_unit||"requests");
+  const [quotaUnit,setQuotaUnit]=useState<"requests"|"tokens"|"images">(item.quota_unit==="tokens"||item.quota_unit==="images"?item.quota_unit:"requests");
   const [expiresAt,setExpiresAt]=useState(item.expires_at?new Date(item.expires_at).toISOString().slice(0,16):new Date(Date.now()+30*86400000).toISOString().slice(0,16));
   const [notes,setNotes]=useState(item.review_notes||"");
+  const [topUp,setTopUp]=useState("1000");
+  const [usage,setUsage]=useState<ApiUsageDetails|null>(null);
+  const [usageLoading,setUsageLoading]=useState(false);
   const requestedAt=new Date(item.created_at).toLocaleString(undefined,{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"});
   const canProvision=item.status==="pending"||item.status==="approved";
-  const submitProvision=()=> {
-    const task=act(()=>adminReviewApiRequest(item.id,{decision:"approve",provider:provider.trim(),productName:productName.trim(),apiKey:apiKey.trim(),quotaLimit:Number(quotaLimit),quotaUnit,expiresAt:new Date(expiresAt).toISOString(),notes:notes.trim()}));
-    void task.finally(()=>{setApiKey("");setShowApiKey(false);});
-  };
-  return <article className={`admin-op-card api-request-card status-${item.status}`}>
+  const allowed=deployments.split(",").map(value=>value.trim()).filter(Boolean);
+  const submitProvision=()=>void act(()=>adminReviewApiRequest(item.id,{decision:"approve",productName:productName.trim(),allowedDeployments:allowed,quotaLimit:Number(quotaLimit),quotaUnit,expiresAt:new Date(expiresAt).toISOString(),notes:notes.trim()}));
+  const openUsage=async()=>{if(!item.subscription_id)return;setUsageLoading(true);try{setUsage(await adminGetApiUsage(item.subscription_id));}finally{setUsageLoading(false);}};
+  const remaining=Math.max(0,(item.quota_limit||0)-(item.usage_count||0));
+  return <><article className={`admin-op-card api-request-card status-${item.status}`}>
     <div className="api-request-heading"><span className={`admin-status ${item.status}`}><i/>{item.status}</span><time>{requestedAt}</time></div>
     <h3>{item.full_name}</h3>
     <p className="api-request-identity">{item.academy_id}{item.admission_number&&<><br/>Admission no. {item.admission_number}</>}</p>
     <div className="api-capability-list">{item.capabilities.map(capability=><span key={capability}>{capability}</span>)}</div>
     {item.other_requirements&&<div className="api-request-message"><strong>Student requirements</strong><p>{item.other_requirements}</p></div>}
     {canProvision?<div className="api-review-form">
-      {item.status==="approved"&&<div className="api-existing-credential"><strong>Credential active</strong><span>{item.provider} · ending {item.key_last_four}</span><small>Enter a new key below only when rotating or updating this access.</small></div>}
-      <div className="api-review-fields"><label><span>Provider</span><input value={provider} onChange={event=>setProvider(event.target.value)} placeholder="OpenAI"/></label><label><span>Issued access name</span><input value={productName} onChange={event=>setProductName(event.target.value)} placeholder="Model API key"/></label></div>
-      <label><span>Full API key <small>Encrypted immediately after submission</small></span><div className="admin-secret-input"><input type={showApiKey?"text":"password"} value={apiKey} onChange={event=>setApiKey(event.target.value)} placeholder="Paste the complete API key"/><button type="button" onClick={()=>setShowApiKey(value=>!value)}>{showApiKey?"Hide":"Show"}</button></div></label>
-      <div className="api-limit-fields"><label><span>Usage limit</span><input type="number" min="1" step="1" value={quotaLimit} onChange={event=>setQuotaLimit(event.target.value)}/></label><label><span>Limit unit</span><select value={quotaUnit} onChange={event=>setQuotaUnit(event.target.value as typeof quotaUnit)}><option value="requests">Requests</option><option value="tokens">Tokens</option><option value="images">Images</option><option value="minutes">Minutes</option></select></label><label><span>Access expires</span><input type="datetime-local" value={expiresAt} onChange={event=>setExpiresAt(event.target.value)}/></label></div>
+      {item.status==="approved"&&<div className="api-existing-credential"><strong>Academy gateway active</strong><span>Key ending {item.key_last_four} · {remaining.toLocaleString()} {item.quota_unit} remaining</span><small>The Azure Foundry credential stays hidden on the Academy backend.</small></div>}
+      <label><span>Access name</span><input value={productName} onChange={event=>setProductName(event.target.value)} placeholder="Beyond Marks Foundry Gateway"/></label>
+      <label><span>Allowed Foundry deployments <small>Comma-separated deployment names</small></span><input value={deployments} onChange={event=>setDeployments(event.target.value)} placeholder="gpt-4.1-mini, text-embedding-3-small"/></label>
+      <div className="api-limit-fields"><label><span>Usage limit</span><input type="number" min="1" step="1" value={quotaLimit} onChange={event=>setQuotaLimit(event.target.value)}/></label><label><span>Limit unit</span><select value={quotaUnit} onChange={event=>setQuotaUnit(event.target.value as typeof quotaUnit)}><option value="requests">Requests</option><option value="tokens">Tokens</option><option value="images">Images</option></select></label><label><span>Access expires</span><input type="datetime-local" value={expiresAt} onChange={event=>setExpiresAt(event.target.value)}/></label></div>
       <label><span>Administrator note</span><input value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Approval note or rejection reason"/></label>
-      <div className="admin-row-actions api-review-actions"><button className="success" disabled={pending||provider.trim().length<2||productName.trim().length<2||apiKey.trim().length<8||!Number.isSafeInteger(Number(quotaLimit))||Number(quotaLimit)<1||!expiresAt} onClick={submitProvision}>{item.status==="approved"?"Rotate & update":"Approve & issue"}</button>{item.status==="pending"&&<button className="danger" disabled={pending||notes.trim().length<3} onClick={()=>void act(()=>adminReviewApiRequest(item.id,{decision:"reject",notes:notes.trim()}))}>Reject request</button>}</div>
+      <div className="admin-row-actions api-review-actions"><button className="success" disabled={pending||productName.trim().length<2||!allowed.length||!Number.isSafeInteger(Number(quotaLimit))||Number(quotaLimit)<1||!expiresAt} onClick={submitProvision}>{item.status==="approved"?"Rotate key & renew":"Approve & create gateway key"}</button>{item.status==="pending"&&<button className="danger" disabled={pending||notes.trim().length<3} onClick={()=>void act(()=>adminReviewApiRequest(item.id,{decision:"reject",notes:notes.trim()}))}>Reject request</button>}</div>
+      {item.status==="approved"&&item.subscription_id&&<div className="api-lifecycle">
+        <div><input type="number" min="1" value={topUp} onChange={event=>setTopUp(event.target.value)} aria-label="Top-up amount"/><button disabled={pending||Number(topUp)<1} onClick={()=>void act(()=>adminManageApiSubscription(item.subscription_id!,{action:"topUp",amount:Number(topUp),notes:"Administrator top-up"}))}>Top up</button></div>
+        <button disabled={pending} onClick={()=>{if(window.confirm("Reset recorded usage to zero while keeping the current allowance?"))void act(()=>adminManageApiSubscription(item.subscription_id!,{action:"reset",notes:"Administrator reset"}));}}>Reset usage</button>
+        <button disabled={pending} onClick={()=>void act(()=>adminManageApiSubscription(item.subscription_id!,{action:"renew",quotaLimit:Number(quotaLimit),quotaUnit,expiresAt:new Date(expiresAt).toISOString(),notes:"Administrator renewal"}))}>Renew allowance</button>
+        <button className="danger" disabled={pending} onClick={()=>{if(window.confirm("Revoke this gateway key immediately?"))void act(()=>adminManageApiSubscription(item.subscription_id!,{action:"revoke",notes:"Administrator revocation"}));}}>Revoke</button>
+        <button disabled={usageLoading} onClick={()=>void openUsage()}>{usageLoading?"Loading…":"Exact usage details"}</button>
+      </div>}
     </div>:<div className="api-review-summary"><strong>Administrator decision</strong><p>{item.review_notes||"No review note was added."}</p></div>}
-  </article>;
+  </article>{usage&&<UsageDialog details={usage} student={item.full_name} onClose={()=>setUsage(null)}/>}</>;
+}
+
+function UsageDialog({details,student,onClose}:{details:ApiUsageDetails;student:string;onClose:()=>void}){
+  return <div className="admin-modal-layer" onMouseDown={onClose}><section className="admin-modal api-usage-modal" role="dialog" aria-modal="true" onMouseDown={event=>event.stopPropagation()}><button className="admin-modal-close" onClick={onClose}>×</button><span>FOUNDRY USAGE LEDGER</span><h2>{student}</h2><p>Exact units reported by successful Azure Foundry responses. Failed calls remain visible with zero charged usage.</p>
+    <div className="api-usage-summary"><article><small>Gateway calls</small><strong>{details.totals.request_count.toLocaleString()}</strong></article><article><small>Charged units</small><strong>{details.totals.charged_units.toLocaleString()}</strong></article><article><small>Input tokens</small><strong>{details.totals.input_tokens.toLocaleString()}</strong></article><article><small>Output tokens</small><strong>{details.totals.output_tokens.toLocaleString()}</strong></article></div>
+    <div className="api-usage-table"><table><thead><tr><th>Time</th><th>Deployment</th><th>Operation</th><th>Usage</th><th>Status</th><th>Latency</th></tr></thead><tbody>{details.events.map(event=><tr key={event.request_id}><td>{new Date(event.created_at).toLocaleString()}</td><td>{event.deployment}</td><td>{event.operation}</td><td>{event.units_charged.toLocaleString()} {event.quota_unit}{event.total_tokens?` · ${event.input_tokens}/${event.output_tokens} tokens`:""}</td><td className={event.status_code<400?"usage-ok":"usage-failed"}>{event.status_code}</td><td>{event.latency_ms} ms</td></tr>)}{!details.events.length&&<tr><td colSpan={6}>No Foundry calls have been recorded.</td></tr>}</tbody></table></div>
+    {!!details.allocations?.length&&<><h3 className="admin-subheading">Allowance history</h3><div className="api-allocation-list">{details.allocations.map(allocation=><article key={allocation.id}><strong>{allocation.action.replace("_"," ")}</strong><span>{allocation.amount.toLocaleString()} {allocation.quota_unit}</span><time>{new Date(allocation.created_at).toLocaleString()}</time></article>)}</div></>}
+  </section></div>;
 }
 
 function NotificationComposer({students,pending,act}:{students:AdminStudent[];pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){

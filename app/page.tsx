@@ -10,6 +10,7 @@ import { AdminDashboard } from "@/components/admin-dashboard";
 import {
   createProject as createApiProject,
   getApiAccess,
+  getApiUsage,
   getNotifications,
   getProfile,
   getProject as getApiProject,
@@ -25,6 +26,7 @@ import {
   type AcademySubscription,
   type AcademyCertificate,
   type AdminEnrollment,
+  type ApiUsageDetails,
 } from "@/lib/academy-api";
 import { beginAdminMfaSetup, loginWithAcademyId, logoutAcademyAccount, signupWithAcademyId, verifyAdminMfa, type MfaChallenge } from "@/lib/academy-auth";
 
@@ -327,6 +329,8 @@ function DashboardDestination({ userName, authenticated, onSignOut }: { userName
   const [apiKeyError, setApiKeyError] = useState("");
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiSubscription, setApiSubscription] = useState<AcademySubscription | null>(null);
+  const [apiUsage,setApiUsage]=useState<ApiUsageDetails|null>(null);
+  const [gatewayBaseUrl,setGatewayBaseUrl]=useState("");
   const [selectedApiModels, setSelectedApiModels] = useState<string[]>([]);
   const [customApiRequirement, setCustomApiRequirement] = useState("");
   const [projectFilter, setProjectFilter] = useState<"working" | "finished">("working");
@@ -401,6 +405,7 @@ Finished and ready for integration.`,
         setProjects(projectData.map(projectFromApi));
         setNotifications(notificationData.data.map(notificationFromApi));
         setApiSubscription(apiAccess.subscriptions[0] || null);
+        setGatewayBaseUrl(apiAccess.gatewayBaseUrl);
         setMyCourses(courseData);setMyCertificates(certificateData);
         setSyncError("");
       })
@@ -409,6 +414,13 @@ Finished and ready for integration.`,
       });
     return () => { active = false; };
   }, [authenticated]);
+
+  useEffect(()=>{
+    if(!apiKeyModalOpen||!apiSubscription||!authenticated)return;
+    let active=true;
+    getApiUsage(apiSubscription.id).then(value=>{if(active)setApiUsage(value);}).catch(error=>{if(active)setApiKeyError(error instanceof Error?error.message:"Usage details could not be loaded.");});
+    return()=>{active=false;};
+  },[apiKeyModalOpen,apiSubscription,authenticated]);
 
   const openProject = async (project: ProjectItem) => {
     setSelectedProject(project);
@@ -426,6 +438,7 @@ Finished and ready for integration.`,
     setRevealedApiKey("");
     setApiKeyError("");
     setApiKeyCopied(false);
+    setApiUsage(null);
   };
 
   const toggleApiKeyVisibility = async () => {
@@ -541,7 +554,7 @@ Finished and ready for integration.`,
             <div><strong>Request API Key</strong><small>Submit a new access request</small></div>
             <i>›</i>
           </button>
-          <button type="button" className={activeApiOption === "accessed" ? "active" : ""} onClick={() => { setActiveApiOption("accessed"); setApiKeyVisible(false); setRevealedApiKey(""); setApiKeyError(""); setApiKeyCopied(false); setApiKeyModalOpen(true); }}>
+          <button type="button" className={activeApiOption === "accessed" ? "active" : ""} onClick={() => { setActiveApiOption("accessed"); setApiKeyVisible(false); setRevealedApiKey(""); setApiKeyError(""); setApiKeyCopied(false); setApiUsage(null); setApiKeyModalOpen(true); }}>
             <span><ApiKeyIcon type="shield" /></span>
             <div><strong>Accessed API Key</strong><small>View your approved key</small></div>
             <i>›</i>
@@ -633,8 +646,10 @@ Finished and ready for integration.`,
                 <div className="api-quota-heading"><div><small>ASSIGNED USAGE LIMIT</small><strong>{apiSubscription.quota_limit?.toLocaleString()||"Unlimited"} <span>{apiSubscription.quota_unit}</span></strong></div><span className={apiSubscription.expires_at&&new Date(apiSubscription.expires_at)<=new Date()?"expired":"active"}>{apiSubscription.expires_at&&new Date(apiSubscription.expires_at)<=new Date()?"Expired":"Active"}</span></div>
                 <div className="api-quota-track"><i style={{width:`${apiSubscription.quota_limit?Math.min(100,(apiSubscription.usage_count/apiSubscription.quota_limit)*100):0}%`}}/></div>
                 <div className="api-quota-meta"><span>{apiSubscription.usage_count.toLocaleString()} recorded usage</span><span>{apiSubscription.expires_at?`Expires ${new Date(apiSubscription.expires_at).toLocaleString()}`:"No expiry"}</span></div>
-                <p>Usage is enforced only when this credential is routed through an Academy gateway or configured with the same quota at the provider.</p>
+                <p>This allowance is enforced by the Academy gateway before requests reach Azure Foundry.</p>
               </div>}
+              {apiSubscription?.credential_kind==="academy_gateway"&&<div className="learner-gateway-details"><span>ACADEMY FOUNDRY GATEWAY</span><code>{gatewayBaseUrl||"Loading gateway endpoint…"}</code><p>Use this as your OpenAI-compatible base URL and the revealed Academy key as the API key. Buffered JSON calls are supported; streaming is disabled for exact metering.</p><small>Allowed deployments</small><div>{apiSubscription.allowed_deployments.map(deployment=><b key={deployment}>{deployment}</b>)}</div></div>}
+              {apiUsage&&<div className="learner-usage-details"><div><span><small>Calls</small><strong>{apiUsage.totals.request_count.toLocaleString()}</strong></span><span><small>Input tokens</small><strong>{apiUsage.totals.input_tokens.toLocaleString()}</strong></span><span><small>Output tokens</small><strong>{apiUsage.totals.output_tokens.toLocaleString()}</strong></span></div><h3>Recent usage</h3>{apiUsage.events.slice(0,8).map(event=><article key={event.request_id}><div><strong>{event.deployment}</strong><small>{event.operation} · {new Date(event.created_at).toLocaleString()}</small></div><span>{event.units_charged.toLocaleString()} {event.quota_unit}</span></article>)}{!apiUsage.events.length&&<p>No Foundry calls recorded yet.</p>}</div>}
             </article>
             <div className="api-key-security-note"><ApiKeyIcon type="shield" /><p><strong>Encrypted and owner-only</strong><span>The full key is encrypted at rest, revealed only on request, and removed from this page when the modal closes.</span></p></div>
             <button className="api-key-modal-done" type="button" onClick={closeApiKeyModal}>Done</button>

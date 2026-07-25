@@ -40,6 +40,8 @@ export type AcademySubscription = {
   usage_count: number;
   expires_at: string | null;
   credential_available: boolean;
+  credential_kind: "legacy_provider" | "academy_gateway";
+  allowed_deployments: string[];
   status: "active" | "revoked" | "expired";
   created_at: string;
   rotated_at: string | null;
@@ -95,7 +97,12 @@ export type AdminApiRequest = {
   quota_unit:"requests"|"tokens"|"images"|"minutes"|null;
   usage_count:number|null;
   expires_at:string|null;
+  credential_kind:"legacy_provider"|"academy_gateway"|null;
+  allowed_deployments:string[];
 };
+export type ApiUsageEvent={request_id:string;deployment:string;operation:string;quota_unit:"requests"|"tokens"|"images"|"minutes";units_charged:number;input_tokens:number;output_tokens:number;total_tokens:number;status_code:number;latency_ms:number;created_at:string};
+export type ApiUsageTotals={request_count:number;charged_units:number;input_tokens:number;output_tokens:number;total_tokens:number};
+export type ApiUsageDetails={events:ApiUsageEvent[];totals:ApiUsageTotals;subscription?:{quota_limit:number;quota_unit:string;usage_count:number;remaining:number;status:string;expires_at:string|null};allocations?:Array<{id:string;action:string;amount:number;quota_unit:string;previous_limit:number|null;previous_usage:number;expires_at:string|null;notes:string;created_at:string}>};
 
 type ApiEnvelope<T> = { data: T; requestId: string };
 
@@ -157,7 +164,7 @@ export async function createProject(input: {
 }
 
 export async function getApiAccess() {
-  return (await apiRequest<ApiEnvelope<{ requests: unknown[]; subscriptions: AcademySubscription[] }>>("/api/v1/api-access")).data;
+  return (await apiRequest<ApiEnvelope<{ requests: unknown[]; subscriptions: AcademySubscription[]; gatewayBaseUrl:string }>>("/api/v1/api-access")).data;
 }
 
 export async function requestApiAccess(capabilities: string[], otherRequirements: string) {
@@ -172,6 +179,7 @@ export async function revealApiCredential(id: string) {
     method: "POST",
   })).data.apiKey;
 }
+export async function getApiUsage(id:string){return(await apiRequest<ApiEnvelope<ApiUsageDetails>>(`/api/v1/api-access/subscriptions/${id}/usage`)).data;}
 
 export async function adminGetStudents(search = "") {
   const query = search ? `?search=${encodeURIComponent(search)}` : "";
@@ -221,7 +229,9 @@ export async function adminUploadCertificateTemplate(input:{name:string;imageBas
 export async function adminGetCampaigns(){return(await apiRequest<ApiEnvelope<AdminCampaign[]>>("/api/v1/admin/notifications")).data;}
 export async function adminCreateCampaign(input:{title:string;message:string;category:string;priority:string;all:boolean;userIds:string[];publishAt?:string;expiresAt?:string}){return(await apiRequest<ApiEnvelope<AdminCampaign>>("/api/v1/admin/notifications",{method:"POST",body:JSON.stringify(input)})).data;}
 export async function adminGetApiRequests(){return(await apiRequest<ApiEnvelope<AdminApiRequest[]>>("/api/v1/admin/api-access/requests")).data;}
-export async function adminReviewApiRequest(id:string,input:{decision:"approve";provider:string;productName:string;apiKey:string;quotaLimit:number;quotaUnit:"requests"|"tokens"|"images"|"minutes";expiresAt:string;notes:string}|{decision:"reject";notes:string}){return(await apiRequest<ApiEnvelope<AdminApiRequest>>(`/api/v1/admin/api-access/requests/${id}/review`,{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminReviewApiRequest(id:string,input:{decision:"approve";productName:string;allowedDeployments:string[];quotaLimit:number;quotaUnit:"requests"|"tokens"|"images"|"minutes";expiresAt:string;notes:string}|{decision:"reject";notes:string}){return(await apiRequest<ApiEnvelope<AdminApiRequest>>(`/api/v1/admin/api-access/requests/${id}/review`,{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminManageApiSubscription(id:string,input:{action:"topUp";amount:number;notes:string}|{action:"reset";notes:string}|{action:"renew";quotaLimit:number;quotaUnit:"requests"|"tokens"|"images"|"minutes";expiresAt:string;notes:string}|{action:"revoke";notes:string}){return(await apiRequest<ApiEnvelope<AdminApiRequest>>(`/api/v1/admin/api-access/subscriptions/${id}`,{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminGetApiUsage(id:string){return(await apiRequest<ApiEnvelope<ApiUsageDetails>>(`/api/v1/admin/api-access/subscriptions/${id}/usage`)).data;}
 export async function getMyCourses(){return(await apiRequest<ApiEnvelope<AdminEnrollment[]>>("/api/v1/courses")).data;}
 export async function getMyCertificates(){return(await apiRequest<ApiEnvelope<AcademyCertificate[]>>("/api/v1/certificates")).data;}
 export async function verifyCertificate(number:string){return(await apiRequest<ApiEnvelope<AcademyCertificate>>(`/api/v1/certificates/verify/${encodeURIComponent(number)}`)).data;}

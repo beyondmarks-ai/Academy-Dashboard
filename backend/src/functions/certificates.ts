@@ -1,6 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
-import { AzureCliCredential, ManagedIdentityCredential } from "@azure/identity";
 import { PDFDocument } from "pdf-lib";
 import { PNG } from "pngjs";
 import QRCode from "qrcode";
@@ -11,6 +10,7 @@ import { getConfig } from "../config.js";
 import { query } from "../db.js";
 import { errorResponse, HttpError, json, parseJson } from "../http.js";
 import { downloadCertificateFile, uploadCertificateFile } from "../storage.js";
+import { foundryToken } from "../foundryAuth.js";
 
 const templateSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -24,20 +24,12 @@ async function requireAdmin(request: HttpRequest) {
   return user;
 }
 
-async function cognitiveToken() {
-  const config = getConfig();
-  const credential = config.NODE_ENV === "production"
-    ? new ManagedIdentityCredential({ clientId: config.AZURE_CLIENT_ID })
-    : new AzureCliCredential();
-  return (await credential.getToken("https://cognitiveservices.azure.com/.default")).token;
-}
-
 async function readText(image: Buffer) {
   const config = getConfig();
   if (!config.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT) throw new Error("Document Intelligence endpoint is not configured.");
   const response = await fetch(`${config.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT.replace(/\/$/, "")}/documentintelligence/documentModels/prebuilt-read:analyze?api-version=2024-11-30`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${await cognitiveToken()}`, "content-type": "image/png" },
+    headers: { Authorization: `Bearer ${await foundryToken()}`, "content-type": "image/png" },
     body: new Uint8Array(image),
   });
   if (response.status !== 202) throw new Error(`OCR submission failed (${response.status}).`);
@@ -45,7 +37,7 @@ async function readText(image: Buffer) {
   if (!operation) throw new Error("OCR operation was not returned.");
   for (let attempt = 0; attempt < 30; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    const poll = await fetch(operation, { headers: { Authorization: `Bearer ${await cognitiveToken()}` } });
+    const poll = await fetch(operation, { headers: { Authorization: `Bearer ${await foundryToken()}` } });
     const result = await poll.json() as { status?: string; analyzeResult?: { content?: string }; error?: { message?: string } };
     if (result.status === "succeeded") return result.analyzeResult?.content || "";
     if (result.status === "failed") throw new Error(result.error?.message || "OCR validation failed.");
@@ -141,7 +133,7 @@ date: "${certificate.completion_date}"
 Render every quoted value exactly and do not invent any text.`);
     const generated = await fetch(`${config.AZURE_FOUNDRY_ENDPOINT.replace(/\/$/, "")}/openai/deployments/${config.AZURE_FOUNDRY_IMAGE_DEPLOYMENT}/images/edits?api-version=2025-04-01-preview`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${await cognitiveToken()}` },
+      headers: { Authorization: `Bearer ${await foundryToken()}` },
       body: form,
     });
     if (!generated.ok) throw new Error(`Foundry image edit failed (${generated.status}): ${(await generated.text()).slice(0, 300)}`);

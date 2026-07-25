@@ -33,14 +33,29 @@ async function listAccessRequests(request: HttpRequest, context: InvocationConte
         quota_limit::float8 AS quota_limit, quota_unit,
         usage_count::float8 AS usage_count, expires_at,
         (encrypted_api_key IS NOT NULL) AS credential_available,
+        credential_kind,allowed_deployments,
         created_at, rotated_at
       FROM api_subscriptions WHERE user_id = $1 ORDER BY created_at DESC
     `, [profile!.id]);
-    return json(200, { data: { requests: result.rows, subscriptions: subscriptions.rows }, requestId });
+    return json(200, { data: { requests: result.rows, subscriptions: subscriptions.rows, gatewayBaseUrl:`${new URL(request.url).origin}/api/v1/gateway/openai/v1` }, requestId });
   } catch (error) {
     context.error("List API access failed", error);
     return errorResponse(error, requestId);
   }
+}
+
+async function learnerUsage(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
+  const requestId=context.invocationId;
+  try{
+    const profile=await ensureProfile(await requireAuth(request));
+    const subscription=await query(`SELECT id FROM api_subscriptions WHERE id=$1 AND user_id=$2`,[request.params.id,profile!.id]);
+    if(!subscription.rowCount)throw new HttpError(404,"API subscription not found.");
+    const [events,totals]=await Promise.all([
+      query(`SELECT request_id,deployment,operation,quota_unit,units_charged::float8 units_charged,input_tokens::float8 input_tokens,output_tokens::float8 output_tokens,total_tokens::float8 total_tokens,status_code,latency_ms,created_at FROM api_usage_events WHERE subscription_id=$1 ORDER BY created_at DESC LIMIT 100`,[request.params.id]),
+      query(`SELECT count(*)::int request_count,coalesce(sum(units_charged),0)::float8 charged_units,coalesce(sum(input_tokens),0)::float8 input_tokens,coalesce(sum(output_tokens),0)::float8 output_tokens,coalesce(sum(total_tokens),0)::float8 total_tokens FROM api_usage_events WHERE subscription_id=$1`,[request.params.id]),
+    ]);
+    return json(200,{data:{events:events.rows,totals:totals.rows[0]},requestId});
+  }catch(error){return errorResponse(error,requestId);}
 }
 
 async function revealCredential(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -95,3 +110,4 @@ async function requestAccess(request: HttpRequest, context: InvocationContext): 
 app.http("listApiAccess", { route: "v1/api-access", methods: ["GET"], authLevel: "anonymous", handler: listAccessRequests });
 app.http("requestApiAccess", { route: "v1/api-access/requests", methods: ["POST"], authLevel: "anonymous", handler: requestAccess });
 app.http("revealApiCredential", { route: "v1/api-access/subscriptions/{id:guid}/credential", methods: ["POST"], authLevel: "anonymous", handler: revealCredential });
+app.http("learnerApiSubscriptionUsage",{route:"v1/api-access/subscriptions/{id:guid}/usage",methods:["GET"],authLevel:"anonymous",handler:learnerUsage});
