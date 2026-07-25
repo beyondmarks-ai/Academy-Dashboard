@@ -13,7 +13,7 @@ const reviewSchema = z.discriminatedUnion("decision", [
     productName: z.string().trim().min(2).max(160),
     allowedDeployments: z.array(z.string().trim().min(1).max(120)).min(1).max(50),
     quotaLimit: z.number().int().positive().max(9_000_000_000_000_000),
-    quotaUnit: z.enum(["requests","tokens","images","minutes"]),
+    quotaUnit: z.enum(["requests","tokens","images","minutes","seconds"]),
     expiresAt: z.string().datetime().refine((value) => new Date(value).getTime() > Date.now(), "Credential expiry must be in the future."),
     notes: z.string().trim().max(1000).default(""),
   }),
@@ -25,7 +25,7 @@ const reviewSchema = z.discriminatedUnion("decision", [
 const lifecycleSchema = z.discriminatedUnion("action", [
   z.object({ action:z.literal("topUp"), amount:z.number().int().positive().max(9_000_000_000_000_000), notes:z.string().trim().max(500).default("") }),
   z.object({ action:z.literal("reset"), notes:z.string().trim().max(500).default("") }),
-  z.object({ action:z.literal("renew"), quotaLimit:z.number().int().positive().max(9_000_000_000_000_000), quotaUnit:z.enum(["requests","tokens","images","minutes"]), expiresAt:z.string().datetime().refine(value=>new Date(value).getTime()>Date.now(),"Renewal expiry must be in the future."), notes:z.string().trim().max(500).default("") }),
+  z.object({ action:z.literal("renew"), quotaLimit:z.number().int().positive().max(9_000_000_000_000_000), quotaUnit:z.enum(["requests","tokens","images","minutes","seconds"]), expiresAt:z.string().datetime().refine(value=>new Date(value).getTime()>Date.now(),"Renewal expiry must be in the future."), notes:z.string().trim().max(500).default("") }),
   z.object({ action:z.literal("revoke"), notes:z.string().trim().max(500).default("") }),
 ]);
 
