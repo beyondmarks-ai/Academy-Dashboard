@@ -28,7 +28,7 @@ import {
 import { beginAdminMfaSetup, loginWithAcademyId, logoutAcademyAccount, signupWithAcademyId, verifyAdminMfa, type MfaChallenge } from "@/lib/academy-auth";
 
 type AuthMode = "login" | "signup" | null;
-type NotificationItem = { id: number | string; title: string; message: string; fullMessage: string; time: string; category: string; unread: boolean };
+type NotificationItem = { id: number | string; title: string; message: string; fullMessage: string; time: string; category: string; priority: "normal" | "important" | "urgent"; unread: boolean };
 type ProjectItem = { id: number | string; name: string; description: string; status: "working" | "finished"; githubUrl: string; readme: string; updated: string };
 
 function projectFromApi(project: AcademyProject): ProjectItem {
@@ -50,6 +50,7 @@ function notificationFromApi(notification: AcademyNotification): NotificationIte
     message: notification.message,
     fullMessage: notification.message,
     category: notification.category,
+    priority: notification.priority || "normal",
     unread: notification.unread,
     time: new Date(notification.created_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }),
   };
@@ -380,8 +381,8 @@ Finished and ready for integration.`,
     },
   ]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([
-    { id: 1, title: "Dashboard updated", message: "Your learning space is ready.", fullMessage: "Your Beyond Marks learning dashboard has been successfully updated and is ready to use. New learning tools, course progress information, upcoming schedules, and important academy updates will appear here as they become available.", time: "Just now", category: "Platform update", unread: true },
-    { id: 2, title: "Account connected", message: `Signed in as ${userName}.`, fullMessage: `Your learner account has been connected successfully. You are currently signed in as ${userName}. If you do not recognize this activity, please contact the academy administrator and update your password immediately.`, time: "Today", category: "Account alert", unread: true },
+    { id: 1, title: "Dashboard updated", message: "Your learning space is ready.", fullMessage: "Your Beyond Marks learning dashboard has been successfully updated and is ready to use. New learning tools, course progress information, upcoming schedules, and important academy updates will appear here as they become available.", time: "Just now", category: "Platform update", priority: "normal", unread: true },
+    { id: 2, title: "Account connected", message: `Signed in as ${userName}.`, fullMessage: `Your learner account has been connected successfully. You are currently signed in as ${userName}. If you do not recognize this activity, please contact the academy administrator and update your password immediately.`, time: "Today", category: "Account alert", priority: "important", unread: true },
   ]);
   const [selectedNotification, setSelectedNotification] = useState<NotificationItem | null>(null);
   const [syncError, setSyncError] = useState("");
@@ -748,7 +749,7 @@ Finished and ready for integration.`,
           {notifications.map((notification) => (
             <button
               type="button"
-              className={`notification-card ${notification.unread ? "unread" : ""}`}
+              className={`notification-card priority-${notification.priority} ${notification.unread ? "unread" : ""}`}
               key={notification.id}
               onClick={() => {
                 setSelectedNotification(notification);
@@ -759,7 +760,7 @@ Finished and ready for integration.`,
               }}
             >
               <span className="notification-dot" />
-              <div><strong>{notification.title}</strong><p>{notification.message}</p><time>{notification.time}</time></div>
+              <div><span className={`notification-priority ${notification.priority}`}>{notification.priority}</span><strong>{notification.title}</strong><p>{notification.message}</p><time>{notification.time}</time></div>
               <span className="notification-open-label">Read</span>
             </button>
           ))}
@@ -779,12 +780,12 @@ Finished and ready for integration.`,
 
       {selectedNotification && (
         <div className="notification-modal-layer" role="presentation" onMouseDown={() => setSelectedNotification(null)}>
-          <section className="notification-modal" role="dialog" aria-modal="true" aria-labelledby="notification-modal-title" onMouseDown={(event) => event.stopPropagation()}>
+          <section className={`notification-modal priority-${selectedNotification.priority}`} role="dialog" aria-modal="true" aria-labelledby="notification-modal-title" onMouseDown={(event) => event.stopPropagation()}>
             <button type="button" className="notification-modal-close" aria-label="Close notification" onClick={() => setSelectedNotification(null)}>×</button>
             <div className="notification-modal-icon" aria-hidden="true">
               <Image src="/ringing-bell-loop.svg" alt="" fill sizes="58px" />
             </div>
-            <span className="notification-modal-category">{selectedNotification.category}</span>
+            <div className="notification-modal-tags"><span className={`notification-priority ${selectedNotification.priority}`}>{selectedNotification.priority}</span><span className="notification-modal-category">{selectedNotification.category}</span></div>
             <h2 id="notification-modal-title">{selectedNotification.title}</h2>
             <time>{selectedNotification.time}</time>
             <div className="notification-modal-rule" />

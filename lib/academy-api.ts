@@ -14,6 +14,7 @@ export type AcademyNotification = {
   title: string;
   message: string;
   category: string;
+  priority: "normal" | "important" | "urgent";
   created_at: string;
   unread: boolean;
 };
@@ -66,6 +67,25 @@ export type AdminCourse = { id:string; code:string; title:string; description:st
 export type AdminEnrollment = { id:string; course_id:string; student_id:string; progress:number; status:"enrolled"|"in_progress"|"completed"|"withdrawn"; notes:string; course_code?:string; course_title?:string; title?:string; student_name?:string; academy_id?:string; admission_number:string|null; completed_at:string|null };
 export type AcademyCertificate = { id:string; verification_number:string; course_title:string; completion_date:string; issued_at:string|null; status:"draft"|"generating"|"validation_failed"|"issued"|"revoked" };
 export type AdminCampaign = { id:string; title:string; message:string; category:string; priority:string; publish_at:string; expires_at:string|null; recipient_count:number; read_count:number };
+export type AdminApiRequest = {
+  id:string;
+  user_id:string;
+  capabilities:string[];
+  other_requirements:string;
+  status:"pending"|"approved"|"rejected"|"revoked";
+  review_notes:string;
+  reviewed_at:string|null;
+  created_at:string;
+  updated_at:string;
+  full_name:string;
+  academy_id:string;
+  admission_id:string|null;
+  admission_number:string|null;
+  provider:string|null;
+  product_name:string|null;
+  key_last_four:string|null;
+  subscription_status:"active"|"revoked"|"expired"|null;
+};
 
 type ApiEnvelope<T> = { data: T; requestId: string };
 
@@ -184,6 +204,8 @@ export async function adminGenerateCertificate(enrollmentId:string){return(await
 export async function adminUploadCertificateTemplate(input:{name:string;imageBase64:string;prompt:string}){return(await apiRequest<ApiEnvelope<unknown>>("/api/v1/admin/certificate-templates",{method:"POST",body:JSON.stringify(input)})).data;}
 export async function adminGetCampaigns(){return(await apiRequest<ApiEnvelope<AdminCampaign[]>>("/api/v1/admin/notifications")).data;}
 export async function adminCreateCampaign(input:{title:string;message:string;category:string;priority:string;all:boolean;userIds:string[];publishAt?:string;expiresAt?:string}){return(await apiRequest<ApiEnvelope<AdminCampaign>>("/api/v1/admin/notifications",{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminGetApiRequests(){return(await apiRequest<ApiEnvelope<AdminApiRequest[]>>("/api/v1/admin/api-access/requests")).data;}
+export async function adminReviewApiRequest(id:string,input:{decision:"approve";provider:string;productName:string;keyLastFour:string;notes:string}|{decision:"reject";notes:string}){return(await apiRequest<ApiEnvelope<AdminApiRequest>>(`/api/v1/admin/api-access/requests/${id}/review`,{method:"POST",body:JSON.stringify(input)})).data;}
 export async function getMyCourses(){return(await apiRequest<ApiEnvelope<AdminEnrollment[]>>("/api/v1/courses")).data;}
 export async function getMyCertificates(){return(await apiRequest<ApiEnvelope<AcademyCertificate[]>>("/api/v1/certificates")).data;}
 export async function verifyCertificate(number:string){return(await apiRequest<ApiEnvelope<AcademyCertificate>>(`/api/v1/certificates/verify/${encodeURIComponent(number)}`)).data;}

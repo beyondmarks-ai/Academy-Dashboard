@@ -15,7 +15,8 @@ const requestAccessSchema = z.object({
 });
 
 type AccessRequestRow = {
-  id: string; capabilities: string[]; other_requirements: string; status: string; created_at: string; updated_at: string;
+  id: string; capabilities: string[]; other_requirements: string; status: string;
+  review_notes: string; reviewed_at: string | null; created_at: string; updated_at: string;
 };
 
 async function listAccessRequests(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -23,7 +24,7 @@ async function listAccessRequests(request: HttpRequest, context: InvocationConte
   try {
     const profile = await ensureProfile(await requireAuth(request));
     const result = await query<AccessRequestRow>(`
-      SELECT id, capabilities, other_requirements, status, created_at, updated_at
+      SELECT id, capabilities, other_requirements, status, review_notes, reviewed_at, created_at, updated_at
       FROM api_access_requests WHERE user_id = $1 ORDER BY created_at DESC
     `, [profile!.id]);
     const subscriptions = await query(`
@@ -45,7 +46,7 @@ async function requestAccess(request: HttpRequest, context: InvocationContext): 
     const result = await query<AccessRequestRow>(`
       INSERT INTO api_access_requests (user_id, capabilities, other_requirements)
       VALUES ($1, $2::jsonb, $3)
-      RETURNING id, capabilities, other_requirements, status, created_at, updated_at
+      RETURNING id, capabilities, other_requirements, status, review_notes, reviewed_at, created_at, updated_at
     `, [profile!.id, JSON.stringify(input.capabilities), input.otherRequirements]);
     await query(`INSERT INTO audit_events (actor_id, action, entity_type, entity_id, request_id) VALUES ($1, 'api-access.requested', 'api_access_request', $2, $3)`, [profile!.id, result.rows[0]!.id, requestId]);
     return json(201, { data: result.rows[0], requestId });

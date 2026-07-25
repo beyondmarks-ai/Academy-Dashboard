@@ -17,6 +17,8 @@ import {
   adminGetCertificates,
   adminGetCourses,
   adminGetEnrollments,
+  adminGetApiRequests,
+  adminReviewApiRequest,
   adminReviewAdmission,
   adminUpdateEnrollment,
   adminUploadCertificateTemplate,
@@ -27,7 +29,10 @@ import {
   type AcademyCertificate,
   type AdminInvitation,
   type AdminStudent,
+  type AdminApiRequest,
 } from "@/lib/academy-api";
+
+type OperationsTab = "admissions"|"apiRequests"|"courses"|"certificates"|"notifications";
 
 export function AdminDashboard({ adminName, onSignOut }: { adminName: string; onSignOut: () => void }) {
   const [students, setStudents] = useState<AdminStudent[]>([]);
@@ -39,20 +44,22 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
   const [inviteOpen, setInviteOpen] = useState(false);
   const [resetStudent, setResetStudent] = useState<AdminStudent | null>(null);
   const [actionPending, setActionPending] = useState(false);
-  const [operationsTab,setOperationsTab]=useState<"admissions"|"courses"|"certificates"|"notifications">("admissions");
+  const [operationsTab,setOperationsTab]=useState<OperationsTab>("admissions");
   const [admissions,setAdmissions]=useState<AdminAdmission[]>([]);
   const [courses,setCourses]=useState<AdminCourse[]>([]);
   const [enrollments,setEnrollments]=useState<AdminEnrollment[]>([]);
   const [certificates,setCertificates]=useState<AcademyCertificate[]>([]);
   const [campaigns,setCampaigns]=useState<AdminCampaign[]>([]);
+  const [apiRequests,setApiRequests]=useState<AdminApiRequest[]>([]);
 
   const refresh = async () => {
     setLoading(true);
     try {
-      const [studentData, invitationData,admissionData,courseData,enrollmentData,certificateData,campaignData] = await Promise.all([adminGetStudents(), adminGetInvitations(),adminGetAdmissions(),adminGetCourses(),adminGetEnrollments(),adminGetCertificates(),adminGetCampaigns()]);
+      const [studentData, invitationData,admissionData,courseData,enrollmentData,certificateData,campaignData,apiRequestData] = await Promise.all([adminGetStudents(), adminGetInvitations(),adminGetAdmissions(),adminGetCourses(),adminGetEnrollments(),adminGetCertificates(),adminGetCampaigns(),adminGetApiRequests()]);
       setStudents(studentData);
       setInvitations(invitationData);
       setAdmissions(admissionData);setCourses(courseData);setEnrollments(enrollmentData);setCertificates(certificateData);setCampaigns(campaignData);
+      setApiRequests(apiRequestData);
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Administration data could not be loaded.");
@@ -166,7 +173,7 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
             </div>
           )}
         </section>
-        <OperationsPanel tab={operationsTab} setTab={setOperationsTab} admissions={admissions} courses={courses} enrollments={enrollments} certificates={certificates} campaigns={campaigns} students={students} pending={actionPending} setPending={setActionPending} refresh={refresh} setError={setError} />
+        <OperationsPanel tab={operationsTab} setTab={setOperationsTab} admissions={admissions} apiRequests={apiRequests} courses={courses} enrollments={enrollments} certificates={certificates} campaigns={campaigns} students={students} pending={actionPending} setPending={setActionPending} refresh={refresh} setError={setError} />
       </section>
 
       {inviteOpen && <InviteDialog pending={actionPending} onClose={() => setInviteOpen(false)} onSubmit={async (event) => {
@@ -212,17 +219,38 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
   );
 }
 
-function OperationsPanel({tab,setTab,admissions,courses,enrollments,certificates,campaigns,students,pending,setPending,refresh,setError}:{tab:"admissions"|"courses"|"certificates"|"notifications";setTab:(value:"admissions"|"courses"|"certificates"|"notifications")=>void;admissions:AdminAdmission[];courses:AdminCourse[];enrollments:AdminEnrollment[];certificates:AcademyCertificate[];campaigns:AdminCampaign[];students:AdminStudent[];pending:boolean;setPending:(value:boolean)=>void;refresh:()=>Promise<void>;setError:(value:string)=>void}){
+function OperationsPanel({tab,setTab,admissions,apiRequests,courses,enrollments,certificates,campaigns,students,pending,setPending,refresh,setError}:{tab:OperationsTab;setTab:(value:OperationsTab)=>void;admissions:AdminAdmission[];apiRequests:AdminApiRequest[];courses:AdminCourse[];enrollments:AdminEnrollment[];certificates:AcademyCertificate[];campaigns:AdminCampaign[];students:AdminStudent[];pending:boolean;setPending:(value:boolean)=>void;refresh:()=>Promise<void>;setError:(value:string)=>void}){
   const act=async(task:()=>Promise<unknown>)=>{setPending(true);try{await task();await refresh();setError("");}catch(error){setError(error instanceof Error?error.message:"Operation failed.");}finally{setPending(false);}};
   return <section className="admin-panel admin-operations">
     <div className="admin-panel-toolbar"><div className="admin-tabs">
-      {(["admissions","courses","certificates","notifications"] as const).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item[0]!.toUpperCase()+item.slice(1)} <span>{item==="admissions"?admissions.filter(x=>x.status==="pending").length:item==="courses"?courses.length:item==="certificates"?certificates.length:campaigns.length}</span></button>)}
+      {(["admissions","apiRequests","courses","certificates","notifications"] as const).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item==="apiRequests"?"API Requests":item[0]!.toUpperCase()+item.slice(1)} <span>{item==="admissions"?admissions.filter(x=>x.status==="pending").length:item==="apiRequests"?apiRequests.filter(x=>x.status==="pending").length:item==="courses"?courses.length:item==="certificates"?certificates.length:campaigns.length}</span></button>)}
     </div></div>
     {tab==="admissions"&&<div className="admin-ops-grid">{admissions.map(item=><AdmissionCard key={item.id} item={item} pending={pending} act={act}/>)}</div>}
+    {tab==="apiRequests"&&<div className="admin-ops-grid api-request-grid">{apiRequests.map(item=><ApiRequestCard key={item.id} item={item} pending={pending} act={act}/>)}{!apiRequests.length&&<div className="admin-empty"><strong>No API requests yet</strong><span>New learner requests will appear here automatically.</span></div>}</div>}
     {tab==="courses"&&<><form className="admin-inline-form" onSubmit={event=>{event.preventDefault();const data=new FormData(event.currentTarget);void act(()=>adminCreateCourse({code:String(data.get("code")),title:String(data.get("title")),description:String(data.get("description")),duration:String(data.get("duration")),status:"active"}));event.currentTarget.reset();}}><input name="code" placeholder="Course code" required/><input name="title" placeholder="Course title" required/><input name="duration" placeholder="Duration"/><input name="description" placeholder="Short description"/><button disabled={pending}>Create course</button></form><div className="admin-ops-grid">{courses.map(course=><article className="admin-op-card" key={course.id}><span>COURSE · {course.code}</span><h3>{course.title}</h3><p>{course.description||"No description"}</p><footer>{course.enrollment_count} enrolled · {course.completion_count} completed</footer><select defaultValue="" onChange={event=>{if(event.target.value)void act(()=>adminEnrollStudents(course.id,[event.target.value]));event.target.value="";}}><option value="">Enroll approved student…</option>{students.filter(x=>x.status==="active").map(x=><option key={x.id} value={x.id}>{x.full_name}</option>)}</select></article>)}</div><h3 className="admin-subheading">Enrollments</h3><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Student</th><th>Course</th><th>Progress</th><th>Status</th><th>Action</th></tr></thead><tbody>{enrollments.map(e=><tr key={e.id}><td>{e.student_name}</td><td>{e.course_title}</td><td>{e.progress}%</td><td>{e.status}</td><td><button disabled={pending} onClick={()=>void act(()=>adminUpdateEnrollment(e.id,{progress:100,status:"completed",notes:e.notes||""}))}>Mark complete</button>{e.status==="completed"&&<button disabled={pending} onClick={()=>void act(()=>adminGenerateCertificate(e.id))}>Generate certificate</button>}</td></tr>)}</tbody></table></div></>}
     {tab==="certificates"&&<><TemplateUpload pending={pending} act={act}/><div className="admin-ops-grid">{certificates.map(c=><article className="admin-op-card" key={c.id}><span>{c.status}</span><h3>{c.course_title}</h3><code>{c.verification_number}</code><footer>{new Date(c.completion_date).toLocaleDateString()}</footer></article>)}</div></>}
-    {tab==="notifications"&&<><NotificationComposer students={students} pending={pending} act={act}/><div className="admin-ops-grid">{campaigns.map(c=><article className="admin-op-card" key={c.id}><span>{c.priority} · {c.category}</span><h3>{c.title}</h3><p>{c.message}</p><footer>{c.read_count}/{c.recipient_count} read</footer></article>)}</div></>}
+    {tab==="notifications"&&<><NotificationComposer students={students} pending={pending} act={act}/><div className="admin-ops-grid">{campaigns.map(c=><article className={`admin-op-card admin-notification-card priority-${c.priority}`} key={c.id}><div className="admin-notification-tags"><span className={`notification-priority ${c.priority}`}>{c.priority}</span><span>{c.category}</span></div><h3>{c.title}</h3><p>{c.message}</p><footer>{c.read_count}/{c.recipient_count} read</footer></article>)}</div></>}
   </section>;
+}
+
+function ApiRequestCard({item,pending,act}:{item:AdminApiRequest;pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){
+  const [provider,setProvider]=useState(item.provider||"OpenAI");
+  const [productName,setProductName]=useState(item.product_name||item.capabilities[0]||"OpenAI 4o model API key");
+  const [keyLastFour,setKeyLastFour]=useState(item.key_last_four||"");
+  const [notes,setNotes]=useState(item.review_notes||"");
+  const requestedAt=new Date(item.created_at).toLocaleString(undefined,{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"});
+  return <article className={`admin-op-card api-request-card status-${item.status}`}>
+    <div className="api-request-heading"><span className={`admin-status ${item.status}`}><i/>{item.status}</span><time>{requestedAt}</time></div>
+    <h3>{item.full_name}</h3>
+    <p className="api-request-identity">{item.academy_id}{item.admission_number&&<><br/>Admission no. {item.admission_number}</>}</p>
+    <div className="api-capability-list">{item.capabilities.map(capability=><span key={capability}>{capability}</span>)}</div>
+    {item.other_requirements&&<div className="api-request-message"><strong>Student requirements</strong><p>{item.other_requirements}</p></div>}
+    {item.status==="pending"?<div className="api-review-form">
+      <div className="api-review-fields"><label><span>Provider</span><input value={provider} onChange={event=>setProvider(event.target.value)} placeholder="OpenAI"/></label><label><span>Issued access name</span><input value={productName} onChange={event=>setProductName(event.target.value)} placeholder="Model API key"/></label><label><span>Key last 4</span><input value={keyLastFour} onChange={event=>setKeyLastFour(event.target.value.replace(/[^a-z0-9]/gi,"").slice(0,4))} placeholder="A7X2" maxLength={4}/></label></div>
+      <label><span>Administrator note</span><input value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Approval note or rejection reason"/></label>
+      <div className="admin-row-actions api-review-actions"><button className="success" disabled={pending||provider.trim().length<2||productName.trim().length<2||keyLastFour.length!==4} onClick={()=>void act(()=>adminReviewApiRequest(item.id,{decision:"approve",provider:provider.trim(),productName:productName.trim(),keyLastFour,notes:notes.trim()}))}>Approve &amp; issue</button><button className="danger" disabled={pending||notes.trim().length<3} onClick={()=>void act(()=>adminReviewApiRequest(item.id,{decision:"reject",notes:notes.trim()}))}>Reject request</button></div>
+    </div>:<div className="api-review-summary"><strong>{item.status==="approved"?item.product_name:"Administrator decision"}</strong><p>{item.status==="approved"?`${item.provider} · Key ending ${item.key_last_four}`:item.review_notes||"No review note was added."}</p></div>}
+  </article>;
 }
 
 function NotificationComposer({students,pending,act}:{students:AdminStudent[];pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){

@@ -3,19 +3,19 @@ import { ensureProfile, requireAuth } from "../auth.js";
 import { query } from "../db.js";
 import { errorResponse, HttpError, json } from "../http.js";
 
-type NotificationRow = { id: string; title: string; message: string; category: string; created_at: string; unread: boolean };
+type NotificationRow = { id: string; title: string; message: string; category: string; priority: "normal" | "important" | "urgent"; created_at: string; unread: boolean };
 
 async function listNotifications(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   const requestId = context.invocationId;
   try {
     const profile = await ensureProfile(await requireAuth(request));
     const result = await query<NotificationRow>(`
-      SELECT c.id, c.title, c.message, c.category, c.publish_at AS created_at, (r.read_at IS NULL) AS unread
+      SELECT c.id, c.title, c.message, c.category, c.priority, c.publish_at AS created_at, (r.read_at IS NULL) AS unread
       FROM notification_campaigns c JOIN notification_recipients r ON r.campaign_id=c.id
       WHERE r.user_id=$1 AND c.cancelled_at IS NULL AND c.publish_at<=now()
         AND (c.expires_at IS NULL OR c.expires_at>now())
       UNION ALL
-      SELECT n.id, n.title, n.message, n.category, n.created_at, (nr.notification_id IS NULL) AS unread
+      SELECT n.id, n.title, n.message, n.category, 'normal'::text AS priority, n.created_at, (nr.notification_id IS NULL) AS unread
       FROM notifications n
       LEFT JOIN notification_reads nr ON nr.notification_id = n.id AND nr.user_id = $1
       WHERE (n.user_id IS NULL OR n.user_id = $1) AND (n.expires_at IS NULL OR n.expires_at > now())
@@ -49,6 +49,10 @@ async function markAllRead(request: HttpRequest, context: InvocationContext): Pr
   const requestId = context.invocationId;
   try {
     const profile = await ensureProfile(await requireAuth(request));
+    await query(`
+      UPDATE notification_recipients SET read_at=coalesce(read_at,now())
+      WHERE user_id=$1 AND read_at IS NULL
+    `, [profile!.id]);
     await query(`
       INSERT INTO notification_reads (notification_id, user_id)
       SELECT id, $1 FROM notifications WHERE user_id IS NULL OR user_id = $1
