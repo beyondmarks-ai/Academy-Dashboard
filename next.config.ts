@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  output: process.env.HOSTINGER_BUILD === "1" ? "standalone" : undefined,
   async headers() {
     const contentSecurityPolicy = [
       "default-src 'self'",

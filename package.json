@@ -9,8 +9,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:hostinger": "node scripts/build-hostinger.mjs",
     "postbuild": "vinext build && node scripts/prepare-sites-build.mjs",
     "start": "next start",
+    "start:hostinger": "node .hostinger/server.js",
     "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
