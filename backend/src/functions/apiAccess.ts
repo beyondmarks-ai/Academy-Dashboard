@@ -9,14 +9,23 @@ const capability = z.enum([
   "Azure AI Foundry", "Text & Language", "Image Models", "Video Models",
   "Speech & Audio", "Embedding Models", "Realtime Models", "Safety Models",
 ]);
+const deployment = z.enum([
+  "gpt-5.6-sol", "gpt-5.6-terra", "text-embedding-3-small", "gpt-image-2",
+  "sora-2", "gpt-audio-1.5", "gpt-4o-mini-transcribe", "gpt-4o-mini-tts",
+]);
 
 const requestAccessSchema = z.object({
-  capabilities: z.array(capability).min(1).max(8),
+  capabilities: z.array(capability).max(8).default([]),
+  deployments: z.array(deployment).min(1).max(8),
+  projectName: z.string().trim().min(2).max(120),
+  intendedUse: z.string().trim().min(10).max(2000),
+  estimatedUsage: z.enum(["starter", "standard", "advanced", "custom"]).default("starter"),
   otherRequirements: z.string().trim().max(2000).default(""),
 });
 
 type AccessRequestRow = {
   id: string; capabilities: string[]; other_requirements: string; status: string;
+  requested_deployments: string[]; project_name: string; intended_use: string; estimated_usage: string;
   review_notes: string; reviewed_at: string | null; created_at: string; updated_at: string;
 };
 
@@ -25,7 +34,8 @@ async function listAccessRequests(request: HttpRequest, context: InvocationConte
   try {
     const profile = await ensureProfile(await requireAuth(request));
     const result = await query<AccessRequestRow>(`
-      SELECT id, capabilities, other_requirements, status, review_notes, reviewed_at, created_at, updated_at
+      SELECT id,capabilities,requested_deployments,project_name,intended_use,estimated_usage,
+        other_requirements,status,review_notes,reviewed_at,created_at,updated_at
       FROM api_access_requests WHERE user_id = $1 ORDER BY created_at DESC
     `, [profile!.id]);
     const subscriptions = await query(`
@@ -95,10 +105,12 @@ async function requestAccess(request: HttpRequest, context: InvocationContext): 
     const profile = await ensureProfile(await requireAuth(request));
     const input = await parseJson(request, requestAccessSchema);
     const result = await query<AccessRequestRow>(`
-      INSERT INTO api_access_requests (user_id, capabilities, other_requirements)
-      VALUES ($1, $2::jsonb, $3)
-      RETURNING id, capabilities, other_requirements, status, review_notes, reviewed_at, created_at, updated_at
-    `, [profile!.id, JSON.stringify(input.capabilities), input.otherRequirements]);
+      INSERT INTO api_access_requests
+        (user_id,capabilities,requested_deployments,project_name,intended_use,estimated_usage,other_requirements)
+      VALUES ($1,$2::jsonb,$3::jsonb,$4,$5,$6,$7)
+      RETURNING id,capabilities,requested_deployments,project_name,intended_use,estimated_usage,
+        other_requirements,status,review_notes,reviewed_at,created_at,updated_at
+    `, [profile!.id, JSON.stringify(input.capabilities), JSON.stringify(input.deployments), input.projectName, input.intendedUse, input.estimatedUsage, input.otherRequirements]);
     await query(`INSERT INTO audit_events (actor_id, action, entity_type, entity_id, request_id) VALUES ($1, 'api-access.requested', 'api_access_request', $2, $3)`, [profile!.id, result.rows[0]!.id, requestId]);
     return json(201, { data: result.rows[0], requestId });
   } catch (error) {

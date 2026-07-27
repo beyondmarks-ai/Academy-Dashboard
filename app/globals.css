@@ -1757,3 +1757,177 @@
   .admin-form-grid { grid-template-columns: 1fr; }
   .admin-modal { padding: 27px 19px 22px; }
 }
+
+/* Azure service center and detailed model catalogue */
+.azure-services-box { flex:0 0 auto;padding:18px;border:1px solid rgba(170,194,212,.14);border-radius:15px;background:linear-gradient(145deg,rgba(13,38,57,.94),rgba(6,21,34,.97));box-shadow:0 18px 48px rgba(0,0,0,.24),inset 0 1px rgba(255,255,255,.035);animation:api-box-in .7s .43s cubic-bezier(.2,.85,.25,1) both; }
+.azure-services-box>header { height:auto;padding:0;display:flex;align-items:center;justify-content:space-between;background:none;border:0; }
+.azure-services-title { display:flex;align-items:center;gap:11px; }
+.azure-services-title p { margin:0 0 3px;color:#7e95a5;font-size:9px;font-weight:800;letter-spacing:.14em; }
+.azure-services-title h2 { margin:0;color:#f3ead9;font:500 22px/1.2 "Playfair Display",Georgia,serif; }
+.azure-service-glyph { width:39px;height:39px;display:grid;place-items:center;flex:0 0 auto;border:1px solid rgba(214,170,98,.27);border-radius:10px;color:#efca85;background:radial-gradient(circle at 35% 25%,rgba(235,194,116,.18),rgba(214,170,98,.04));font:800 10px/1 "DM Sans",sans-serif;letter-spacing:.06em;box-shadow:inset 0 1px rgba(255,255,255,.04); }
+.azure-live-indicator { display:flex;align-items:center;gap:6px;color:#89a29a;font-size:9px;font-weight:800;text-transform:uppercase; }
+.azure-live-indicator i { width:6px;height:6px;border-radius:50%;background:#73c49c;box-shadow:0 0 9px rgba(115,196,156,.7); }
+.azure-service-metrics { margin-top:15px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px; }
+.azure-service-metrics article { padding:10px;border:1px solid rgba(170,194,212,.09);border-radius:9px;background:rgba(255,255,255,.02); }
+.azure-service-metrics small,.azure-service-metrics span { display:block;color:#6f8797;font-size:7px;text-transform:uppercase; }
+.azure-service-metrics strong { display:block;margin:3px 0;color:#e8c785;font-size:18px; }
+.azure-service-preview { margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:7px; }
+.azure-service-preview button { min-width:0;padding:9px;display:flex;align-items:center;gap:8px;border:1px solid rgba(170,194,212,.09);border-radius:9px;color:#d5dfe3;background:rgba(255,255,255,.018);text-align:left;cursor:pointer;transition:.2s ease; }
+.azure-service-preview button:hover { transform:translateY(-1px);border-color:rgba(214,170,98,.3);background:rgba(214,170,98,.055); }
+.azure-service-preview .azure-service-glyph { width:29px;height:29px;border-radius:8px;font-size:8px; }
+.azure-service-preview button>span:nth-child(2) { min-width:0;flex:1; }
+.azure-service-preview strong,.azure-service-preview small { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.azure-service-preview strong { color:#dce5e9;font-size:9px; }
+.azure-service-preview small { margin-top:2px;color:#718897;font-size:7px; }
+.azure-service-preview button>i { color:#9b7b45;font-style:normal; }
+.azure-services-box>footer { margin-top:11px;display:grid;grid-template-columns:1.15fr 1fr;gap:7px; }
+.azure-services-box>footer button { height:36px;border:1px solid rgba(214,170,98,.18);border-radius:8px;color:#dfbd7b;background:rgba(214,170,98,.055);font-size:9px;font-weight:800;cursor:pointer; }
+.azure-services-box>footer button:first-child { color:#071625;background:linear-gradient(100deg,#b77d36,#efd08e); }
+
+.azure-service-modal-layer { position:fixed;inset:0;z-index:95;padding:24px;display:grid;place-items:center;background:rgba(1,8,15,.82);backdrop-filter:blur(9px);animation:modal-layer-in .22s ease-out both; }
+.azure-service-modal { position:relative;width:min(1120px,100%);max-height:calc(100vh - 48px);overflow-y:auto;scrollbar-width:none;border:1px solid rgba(214,170,98,.25);border-radius:22px;background:linear-gradient(145deg,#0d293e 0%,#061724 65%,#04121e 100%);box-shadow:0 42px 130px rgba(0,0,0,.72),inset 0 1px rgba(255,255,255,.04);animation:auth-modal-in .4s cubic-bezier(.2,.85,.25,1) both; }
+.azure-service-modal::-webkit-scrollbar { display:none; }
+.azure-service-close { position:absolute;top:18px;right:20px;z-index:3;width:38px;height:38px;border:1px solid rgba(255,255,255,.1);border-radius:50%;color:#a9b9c2;background:rgba(255,255,255,.035);font-size:24px;cursor:pointer; }
+.azure-hub-header { height:auto;padding:31px 36px 22px;display:block;border:0;background:radial-gradient(circle at 75% 0,rgba(214,170,98,.09),transparent 36%); }
+.azure-hub-header>span { color:#d9aa5e;font-size:9px;font-weight:900;letter-spacing:.2em; }
+.azure-hub-header h2 { margin:7px 0 4px;color:#f3ead9;font:500 clamp(29px,4vw,42px)/1.15 "Playfair Display",Georgia,serif; }
+.azure-hub-header p { margin:0;color:#8ea2af;font-size:12px; }
+.azure-hub-tabs { padding:0 36px;display:flex;gap:7px;border-bottom:1px solid rgba(170,194,212,.1); }
+.azure-hub-tabs button { height:45px;padding:0 16px;border:0;border-bottom:2px solid transparent;color:#78909f;background:transparent;font-size:11px;font-weight:800;cursor:pointer; }
+.azure-hub-tabs button.active { color:#efcd8b;border-bottom-color:#d6aa62; }
+.azure-hub-tabs span { margin-left:6px;padding:2px 6px;border-radius:99px;background:rgba(255,255,255,.055);font-size:8px; }
+.azure-catalog-layout { min-height:590px;display:grid;grid-template-columns:340px minmax(0,1fr); }
+.azure-catalog-list { padding:20px;display:flex;flex-direction:column;gap:7px;border-right:1px solid rgba(170,194,212,.1);background:rgba(1,12,21,.22); }
+.azure-catalog-list button { min-width:0;padding:10px;display:grid;grid-template-columns:39px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid transparent;border-radius:11px;color:#adbdc5;background:transparent;text-align:left;cursor:pointer; }
+.azure-catalog-list button:hover,.azure-catalog-list button.active { border-color:rgba(214,170,98,.18);background:rgba(214,170,98,.055); }
+.azure-catalog-list button.active { box-shadow:inset 3px 0 #d6aa62; }
+.azure-catalog-list strong,.azure-catalog-list small { display:block; }
+.azure-catalog-list strong { color:#dce5e9;font-size:10px; }
+.azure-catalog-list small { max-width:220px;overflow:hidden;margin-top:3px;color:#718695;font-size:8px;text-overflow:ellipsis;white-space:nowrap; }
+.azure-catalog-list em { padding:4px 6px;border-radius:99px;color:#74c6a1;background:rgba(88,177,136,.09);font-size:7px;font-style:normal;font-weight:900; }
+.azure-service-detail { padding:29px 34px 34px; }
+.azure-detail-heading { display:flex;align-items:flex-start;gap:15px; }
+.azure-detail-heading .azure-service-glyph { width:54px;height:54px;border-radius:14px;font-size:12px; }
+.azure-detail-heading span { color:#7790a0;font-size:8px;font-weight:900;letter-spacing:.15em; }
+.azure-detail-heading h3 { margin:5px 0;color:#f0e7d6;font:500 27px/1.2 "Playfair Display",Georgia,serif; }
+.azure-detail-heading p { margin:0;color:#8da0ad;font-size:11px;line-height:1.55; }
+.azure-feature-row { margin:19px 0;display:flex;flex-wrap:wrap;gap:7px; }
+.azure-feature-row span { padding:7px 9px;border:1px solid rgba(103,157,194,.13);border-radius:7px;color:#92aec0;background:rgba(66,129,171,.05);font-size:8px; }
+.azure-service-detail form { display:grid;gap:14px; }
+.azure-service-detail label { display:grid;gap:7px;color:#c8d4da;font-size:10px;font-weight:700; }
+.azure-service-detail input,.azure-service-detail select,.azure-service-detail textarea { width:100%;border:1px solid rgba(170,194,212,.14);border-radius:9px;outline:0;color:#e6ecef;background:rgba(255,255,255,.03);font:11px/1.5 "DM Sans",sans-serif; }
+.azure-service-detail input,.azure-service-detail select { height:42px;padding:0 12px; }
+.azure-service-detail select option { color:#e6ecef;background:#0b2235; }
+.azure-service-detail textarea { min-height:90px;padding:11px 12px;resize:vertical; }
+.azure-service-detail input:focus,.azure-service-detail select:focus,.azure-service-detail textarea:focus { border-color:rgba(214,170,98,.5);box-shadow:0 0 0 3px rgba(214,170,98,.06); }
+.azure-service-detail fieldset { margin:0;padding:0;border:0; }
+.azure-service-detail legend { margin-bottom:8px;color:#c8d4da;font-size:10px;font-weight:700; }
+.azure-plan-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px; }
+.azure-plan-grid button { min-height:78px;padding:11px;border:1px solid rgba(170,194,212,.11);border-radius:10px;color:#8fa3b0;background:rgba(255,255,255,.02);text-align:left;cursor:pointer; }
+.azure-plan-grid button.active { border-color:rgba(214,170,98,.48);background:linear-gradient(125deg,rgba(214,170,98,.14),rgba(214,170,98,.035));box-shadow:inset 0 1px rgba(255,255,255,.04); }
+.azure-plan-grid small,.azure-plan-grid strong,.azure-plan-grid span { display:block; }
+.azure-plan-grid small { color:#d4a85f;font-size:8px;font-weight:900;text-transform:uppercase; }
+.azure-plan-grid strong { margin:5px 0;color:#e9eef0;font-size:13px; }
+.azure-plan-grid span { color:#708796;font-size:8px; }
+.azure-form-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+.azure-request-success { margin:0;padding:10px 12px;border:1px solid rgba(102,193,148,.22);border-radius:9px;color:#9ad3b5;background:rgba(73,160,116,.07);font-size:9px; }
+.azure-request-footer { padding-top:13px;display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid rgba(170,194,212,.09); }
+.azure-request-footer small,.azure-request-footer strong { display:block; }
+.azure-request-footer small { color:#718897;font-size:7px;font-weight:900;letter-spacing:.13em; }
+.azure-request-footer strong { margin-top:4px;color:#e8c785;font-size:14px; }
+.azure-request-footer button { min-width:210px;height:44px;border:1px solid #e0b66b;border-radius:9px;color:#071625;background:linear-gradient(100deg,#b77d36,#f1d18e 48%,#c48c42);font-size:10px;font-weight:900;cursor:pointer; }
+.azure-request-footer button:disabled { border-color:rgba(170,194,212,.1);color:#627888;background:rgba(255,255,255,.035);cursor:not-allowed; }
+.azure-ledger { padding:25px 34px 36px; }
+.azure-ledger-summary { display:grid;grid-template-columns:repeat(4,1fr);gap:9px; }
+.azure-ledger-summary article { padding:15px;border:1px solid rgba(170,194,212,.1);border-radius:11px;background:rgba(255,255,255,.02); }
+.azure-ledger-summary small { display:block;color:#708796;font-size:8px;font-weight:800;text-transform:uppercase; }
+.azure-ledger-summary strong { display:block;margin-top:5px;color:#efcd8b;font:500 26px/1 "Playfair Display",Georgia,serif; }
+.azure-entitlement-grid { margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+.azure-entitlement-grid>article { padding:15px;border:1px solid rgba(170,194,212,.1);border-radius:12px;background:linear-gradient(135deg,rgba(255,255,255,.026),rgba(255,255,255,.012)); }
+.azure-entitlement-grid article>header { height:auto;padding:0;display:flex;align-items:center;gap:10px;border:0;background:none; }
+.azure-entitlement-grid header div { min-width:0;flex:1; }
+.azure-entitlement-grid header strong,.azure-entitlement-grid header small { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.azure-entitlement-grid header strong { color:#dce5e9;font-size:11px; }
+.azure-entitlement-grid header small { margin-top:3px;color:#728897;font-size:8px; }
+.service-status { display:inline-flex;padding:4px 7px;border-radius:99px;color:#79c7a2;background:rgba(71,170,124,.09);font-size:7px;font-weight:900;text-transform:uppercase; }
+.service-status.pending { color:#edc575;background:rgba(214,170,98,.1); }
+.service-status.rejected,.service-status.revoked,.service-status.failed,.service-status.blocked { color:#ec9187;background:rgba(185,66,54,.1); }
+.service-status.suspended,.service-status.expired,.service-status.cancelled { color:#91a4af;background:rgba(134,155,167,.09); }
+.service-quota-numbers { margin-top:14px;display:flex;align-items:baseline;gap:6px; }
+.service-quota-numbers strong { color:#f0d398;font-size:16px; }
+.service-quota-numbers span { color:#748b99;font-size:8px; }
+.service-quota-track { height:6px;margin-top:8px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.06); }
+.service-quota-track i { display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#b77d36,#f1d18e); }
+.azure-entitlement-grid article>footer { margin-top:7px;display:flex;justify-content:space-between;color:#6e8594;font-size:7px; }
+.azure-ledger-empty { grid-column:1/-1;padding:42px;display:grid;justify-items:center;border:1px dashed rgba(214,170,98,.16);border-radius:13px;text-align:center; }
+.azure-ledger-empty strong { margin-top:12px;color:#dce5e9;font-size:13px; }
+.azure-ledger-empty p { max-width:440px;margin:6px 0 15px;color:#758b99;font-size:10px;line-height:1.5; }
+.azure-ledger-empty button { height:36px;padding:0 14px;border:1px solid rgba(214,170,98,.26);border-radius:8px;color:#e5c27f;background:rgba(214,170,98,.07);font-size:9px;font-weight:800;cursor:pointer; }
+.azure-ledger-table,.azure-request-history { margin-top:18px;border:1px solid rgba(170,194,212,.09);border-radius:12px;overflow:hidden; }
+.azure-ledger-table>header { height:auto;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border:0;border-bottom:1px solid rgba(170,194,212,.08);background:rgba(255,255,255,.018); }
+.azure-ledger-table h3,.azure-request-history h3 { margin:0;color:#dce5e9;font-size:11px; }
+.azure-ledger-table header span { color:#687f8f;font-size:7px;font-weight:900;letter-spacing:.13em; }
+.azure-ledger-table>div { overflow-x:auto; }
+.azure-ledger-table table { width:100%;border-collapse:collapse;font-size:9px; }
+.azure-ledger-table th,.azure-ledger-table td { padding:11px 14px;border-bottom:1px solid rgba(170,194,212,.06);color:#8fa2ae;text-align:left;white-space:nowrap; }
+.azure-ledger-table th { color:#708796;font-size:7px;text-transform:uppercase; }
+.azure-request-history { padding:15px; }
+.azure-request-history h3 { margin-bottom:10px; }
+.azure-request-history article { padding:10px 0;display:grid;grid-template-columns:auto 1fr minmax(0,260px);gap:10px;align-items:center;border-top:1px solid rgba(170,194,212,.06); }
+.azure-request-history article div strong,.azure-request-history article div small { display:block; }
+.azure-request-history article div strong { color:#cdd9df;font-size:9px; }
+.azure-request-history article div small,.azure-request-history article p { margin:3px 0 0;color:#708796;font-size:8px; }
+
+.model-request-modal { width:min(980px,100%);padding:31px 34px 30px; }
+.model-request-context { margin-bottom:17px;display:grid;grid-template-columns:1.4fr 1fr;gap:10px; }
+.model-request-context label { display:grid;gap:7px;color:#d5dfe3;font-size:10px;font-weight:700; }
+.model-request-context input,.model-request-context select { width:100%;height:42px;padding:0 12px;border:1px solid rgba(170,194,212,.14);border-radius:9px;outline:0;color:#e8edef;background:rgba(255,255,255,.035);font:11px "DM Sans",sans-serif; }
+.model-request-context select option { color:#e8edef;background:#0b2235; }
+.model-request-modal legend { width:100%;display:flex;justify-content:space-between; }
+.model-request-modal legend small { color:#d9aa5e;font-size:8px; }
+.model-filter-tabs { margin-bottom:10px;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none; }
+.model-filter-tabs::-webkit-scrollbar { display:none; }
+.model-filter-tabs button { height:31px;padding:0 10px;flex:0 0 auto;border:1px solid rgba(170,194,212,.1);border-radius:8px;color:#7d92a0;background:rgba(255,255,255,.018);font-size:8px;font-weight:800;cursor:pointer; }
+.model-filter-tabs button.active { color:#f0ce8b;border-color:rgba(214,170,98,.32);background:rgba(214,170,98,.09); }
+.model-request-modal .model-access-grid { grid-template-columns:1fr 1fr; }
+.model-request-modal .model-access-grid>button { min-height:118px;grid-template-columns:46px minmax(0,1fr) 23px;padding:13px;align-items:start; }
+.model-deployment-mark { width:43px;height:43px;display:grid;place-items:center;border:1px solid rgba(214,170,98,.24);border-radius:11px;color:#edc67e;background:radial-gradient(circle at 35% 25%,rgba(225,182,105,.18),rgba(214,170,98,.035));font-size:10px;font-weight:900; }
+.model-request-modal .model-access-grid strong { color:#dfe7ea;font-size:12px; }
+.model-request-modal .model-access-grid code { display:block;margin-top:3px;color:#d3a75f;font-size:8px; }
+.model-request-modal .model-access-grid small { margin-top:7px;color:#7e94a2;font-size:8px;line-height:1.45; }
+.model-request-modal .model-access-grid em { margin-top:8px;display:flex;gap:5px;font-style:normal; }
+.model-request-modal .model-access-grid em b { padding:4px 6px;border-radius:5px;color:#85a6ba;background:rgba(71,132,171,.07);font-size:7px;font-weight:800; }
+.api-request-project { margin:12px 0;padding:11px;border:1px solid rgba(92,151,189,.14);border-radius:9px;background:rgba(60,125,166,.045); }
+.api-request-project small { color:#7896a9;font-size:7px;font-weight:900;letter-spacing:.1em; }
+.api-request-project strong { display:block;margin-top:4px;color:#dce5e9;font-size:11px; }
+.api-request-project p { margin:5px 0 0;color:#7e929f;font-size:9px;line-height:1.5; }
+.api-deployment-request-list { margin:9px 0;display:flex;flex-wrap:wrap;gap:5px; }
+.api-deployment-request-list code { padding:5px 7px;border:1px solid rgba(214,170,98,.18);border-radius:6px;color:#e0bd79;background:rgba(214,170,98,.055);font-size:8px; }
+.service-request-admin-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.service-request-admin-card { position:relative; }
+.service-admin-title { margin-top:12px;display:flex;align-items:center;gap:10px; }
+.service-admin-title>span { width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(214,170,98,.26);border-radius:10px;color:#e8c37d;background:rgba(214,170,98,.07);font-size:10px;font-weight:900; }
+.service-admin-title small { display:block;color:#778e9d;font-size:8px;text-transform:uppercase; }
+.service-admin-title h3 { margin:3px 0 0!important; }
+.service-request-spec { margin:11px 0;display:grid;grid-template-columns:1fr 1fr;gap:7px; }
+.service-request-spec span { padding:9px;border:1px solid rgba(170,194,212,.08);border-radius:8px;background:rgba(255,255,255,.018); }
+.service-request-spec small,.service-request-spec strong { display:block; }
+.service-request-spec small { color:#718796;font-size:7px;text-transform:uppercase; }
+.service-request-spec strong { margin-top:3px;color:#d9c291;font-size:9px;text-transform:capitalize; }
+.service-admin-allowance { margin-bottom:11px;padding:12px;display:grid;grid-template-columns:1fr auto;gap:8px;border:1px solid rgba(214,170,98,.14);border-radius:9px;background:rgba(214,170,98,.04); }
+.service-admin-allowance div>span { color:#718796;font-size:7px;font-weight:900;text-transform:uppercase; }
+.service-admin-allowance div>strong { display:block;margin-top:4px;color:#e8c785;font-size:12px; }
+.service-admin-allowance div>strong small { color:#7e919d;font-size:8px; }
+.service-admin-allowance>i { grid-column:1/-1;height:5px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.06); }
+.service-admin-allowance>i b { display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#b77d36,#f1d18e); }
+
+@media(max-width:800px){
+  .azure-catalog-layout{grid-template-columns:1fr}.azure-catalog-list{max-height:220px;overflow-y:auto;border-right:0;border-bottom:1px solid rgba(170,194,212,.1)}
+  .azure-ledger-summary{grid-template-columns:1fr 1fr}.azure-entitlement-grid{grid-template-columns:1fr}.model-request-modal .model-access-grid{grid-template-columns:1fr}
+}
+@media(max-width:980px){.service-request-admin-grid{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .azure-service-modal-layer{padding:10px}.azure-service-modal{max-height:calc(100vh - 20px);border-radius:16px}.azure-hub-header{padding:26px 18px 18px}.azure-hub-tabs{padding:0 18px}
+  .azure-service-detail,.azure-ledger{padding:20px 16px 25px}.azure-plan-grid,.azure-form-grid{grid-template-columns:1fr}.azure-request-footer{align-items:stretch;flex-direction:column}.azure-request-footer button{width:100%}
+  .azure-ledger-summary{grid-template-columns:1fr 1fr}.azure-request-history article{grid-template-columns:auto 1fr}.azure-request-history article p{grid-column:2}.model-request-context{grid-template-columns:1fr}.model-request-modal{padding:28px 17px 22px}
+}

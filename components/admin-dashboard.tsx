@@ -21,6 +21,9 @@ import {
   adminReviewApiRequest,
   adminManageApiSubscription,
   adminGetApiUsage,
+  adminGetServiceRequests,
+  adminReviewServiceRequest,
+  adminManageServiceEntitlement,
   adminReviewAdmission,
   adminUpdateEnrollment,
   adminUploadCertificateTemplate,
@@ -33,9 +36,12 @@ import {
   type AdminStudent,
   type AdminApiRequest,
   type ApiUsageDetails,
+  type AdminServiceRequest,
+  type AzureQuotaUnit,
 } from "@/lib/academy-api";
+import { AZURE_SERVICE_CATALOG, formatServiceUnits } from "@/lib/azure-catalog";
 
-type OperationsTab = "admissions"|"apiRequests"|"courses"|"certificates"|"notifications";
+type OperationsTab = "admissions"|"apiRequests"|"serviceRequests"|"courses"|"certificates"|"notifications";
 
 export function AdminDashboard({ adminName, onSignOut }: { adminName: string; onSignOut: () => void }) {
   const [students, setStudents] = useState<AdminStudent[]>([]);
@@ -54,15 +60,17 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
   const [certificates,setCertificates]=useState<AcademyCertificate[]>([]);
   const [campaigns,setCampaigns]=useState<AdminCampaign[]>([]);
   const [apiRequests,setApiRequests]=useState<AdminApiRequest[]>([]);
+  const [serviceRequests,setServiceRequests]=useState<AdminServiceRequest[]>([]);
 
   const refresh = async () => {
     setLoading(true);
     try {
-      const [studentData, invitationData,admissionData,courseData,enrollmentData,certificateData,campaignData,apiRequestData] = await Promise.all([adminGetStudents(), adminGetInvitations(),adminGetAdmissions(),adminGetCourses(),adminGetEnrollments(),adminGetCertificates(),adminGetCampaigns(),adminGetApiRequests()]);
+      const [studentData, invitationData,admissionData,courseData,enrollmentData,certificateData,campaignData,apiRequestData,serviceRequestData] = await Promise.all([adminGetStudents(), adminGetInvitations(),adminGetAdmissions(),adminGetCourses(),adminGetEnrollments(),adminGetCertificates(),adminGetCampaigns(),adminGetApiRequests(),adminGetServiceRequests()]);
       setStudents(studentData);
       setInvitations(invitationData);
       setAdmissions(admissionData);setCourses(courseData);setEnrollments(enrollmentData);setCertificates(certificateData);setCampaigns(campaignData);
       setApiRequests(apiRequestData);
+      setServiceRequests(serviceRequestData);
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Administration data could not be loaded.");
@@ -176,7 +184,7 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
             </div>
           )}
         </section>
-        <OperationsPanel tab={operationsTab} setTab={setOperationsTab} admissions={admissions} apiRequests={apiRequests} courses={courses} enrollments={enrollments} certificates={certificates} campaigns={campaigns} students={students} pending={actionPending} setPending={setActionPending} refresh={refresh} setError={setError} />
+        <OperationsPanel tab={operationsTab} setTab={setOperationsTab} admissions={admissions} apiRequests={apiRequests} serviceRequests={serviceRequests} courses={courses} enrollments={enrollments} certificates={certificates} campaigns={campaigns} students={students} pending={actionPending} setPending={setActionPending} refresh={refresh} setError={setError} />
       </section>
 
       {inviteOpen && <InviteDialog pending={actionPending} onClose={() => setInviteOpen(false)} onSubmit={async (event) => {
@@ -222,14 +230,15 @@ export function AdminDashboard({ adminName, onSignOut }: { adminName: string; on
   );
 }
 
-function OperationsPanel({tab,setTab,admissions,apiRequests,courses,enrollments,certificates,campaigns,students,pending,setPending,refresh,setError}:{tab:OperationsTab;setTab:(value:OperationsTab)=>void;admissions:AdminAdmission[];apiRequests:AdminApiRequest[];courses:AdminCourse[];enrollments:AdminEnrollment[];certificates:AcademyCertificate[];campaigns:AdminCampaign[];students:AdminStudent[];pending:boolean;setPending:(value:boolean)=>void;refresh:()=>Promise<void>;setError:(value:string)=>void}){
+function OperationsPanel({tab,setTab,admissions,apiRequests,serviceRequests,courses,enrollments,certificates,campaigns,students,pending,setPending,refresh,setError}:{tab:OperationsTab;setTab:(value:OperationsTab)=>void;admissions:AdminAdmission[];apiRequests:AdminApiRequest[];serviceRequests:AdminServiceRequest[];courses:AdminCourse[];enrollments:AdminEnrollment[];certificates:AcademyCertificate[];campaigns:AdminCampaign[];students:AdminStudent[];pending:boolean;setPending:(value:boolean)=>void;refresh:()=>Promise<void>;setError:(value:string)=>void}){
   const act=async(task:()=>Promise<unknown>)=>{setPending(true);try{await task();await refresh();setError("");}catch(error){setError(error instanceof Error?error.message:"Operation failed.");}finally{setPending(false);}};
   return <section className="admin-panel admin-operations">
     <div className="admin-panel-toolbar"><div className="admin-tabs">
-      {(["admissions","apiRequests","courses","certificates","notifications"] as const).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item==="apiRequests"?"API Requests":item[0]!.toUpperCase()+item.slice(1)} <span>{item==="admissions"?admissions.filter(x=>x.status==="pending").length:item==="apiRequests"?apiRequests.filter(x=>x.status==="pending").length:item==="courses"?courses.length:item==="certificates"?certificates.length:campaigns.length}</span></button>)}
+      {(["admissions","apiRequests","serviceRequests","courses","certificates","notifications"] as const).map(item=><button key={item} className={tab===item?"active":""} onClick={()=>setTab(item)}>{item==="apiRequests"?"Model Access":item==="serviceRequests"?"Azure Services":item[0]!.toUpperCase()+item.slice(1)} <span>{item==="admissions"?admissions.filter(x=>x.status==="pending").length:item==="apiRequests"?apiRequests.filter(x=>x.status==="pending").length:item==="serviceRequests"?serviceRequests.filter(x=>x.status==="pending").length:item==="courses"?courses.length:item==="certificates"?certificates.length:campaigns.length}</span></button>)}
     </div></div>
     {tab==="admissions"&&<div className="admin-ops-grid">{admissions.map(item=><AdmissionCard key={item.id} item={item} pending={pending} act={act}/>)}</div>}
     {tab==="apiRequests"&&<div className="admin-ops-grid api-request-grid">{apiRequests.map(item=><ApiRequestCard key={item.id} item={item} pending={pending} act={act}/>)}{!apiRequests.length&&<div className="admin-empty"><strong>No API requests yet</strong><span>New learner requests will appear here automatically.</span></div>}</div>}
+    {tab==="serviceRequests"&&<div className="admin-ops-grid service-request-admin-grid">{serviceRequests.map(item=><ServiceRequestCard key={item.id} item={item} pending={pending} act={act}/>)}{!serviceRequests.length&&<div className="admin-empty"><strong>No Azure service requests yet</strong><span>Student storage, compute and ML requests will appear here.</span></div>}</div>}
     {tab==="courses"&&<><form className="admin-inline-form" onSubmit={event=>{event.preventDefault();const data=new FormData(event.currentTarget);void act(()=>adminCreateCourse({code:String(data.get("code")),title:String(data.get("title")),description:String(data.get("description")),duration:String(data.get("duration")),status:"active"}));event.currentTarget.reset();}}><input name="code" placeholder="Course code" required/><input name="title" placeholder="Course title" required/><input name="duration" placeholder="Duration"/><input name="description" placeholder="Short description"/><button disabled={pending}>Create course</button></form><div className="admin-ops-grid">{courses.map(course=><article className="admin-op-card" key={course.id}><span>COURSE · {course.code}</span><h3>{course.title}</h3><p>{course.description||"No description"}</p><footer>{course.enrollment_count} enrolled · {course.completion_count} completed</footer><select defaultValue="" onChange={event=>{if(event.target.value)void act(()=>adminEnrollStudents(course.id,[event.target.value]));event.target.value="";}}><option value="">Enroll approved student…</option>{students.filter(x=>x.status==="active").map(x=><option key={x.id} value={x.id}>{x.full_name}</option>)}</select></article>)}</div><h3 className="admin-subheading">Enrollments</h3><div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>Student</th><th>Course</th><th>Progress</th><th>Status</th><th>Action</th></tr></thead><tbody>{enrollments.map(e=><tr key={e.id}><td>{e.student_name}</td><td>{e.course_title}</td><td>{e.progress}%</td><td>{e.status}</td><td><button disabled={pending} onClick={()=>void act(()=>adminUpdateEnrollment(e.id,{progress:100,status:"completed",notes:e.notes||""}))}>Mark complete</button>{e.status==="completed"&&<button disabled={pending} onClick={()=>void act(()=>adminGenerateCertificate(e.id))}>Generate certificate</button>}</td></tr>)}</tbody></table></div></>}
     {tab==="certificates"&&<><TemplateUpload pending={pending} act={act}/><div className="admin-ops-grid">{certificates.map(c=><article className="admin-op-card" key={c.id}><span>{c.status}</span><h3>{c.course_title}</h3><code>{c.verification_number}</code><footer>{new Date(c.completion_date).toLocaleDateString()}</footer></article>)}</div></>}
     {tab==="notifications"&&<><NotificationComposer students={students} pending={pending} act={act}/><div className="admin-ops-grid">{campaigns.map(c=><article className={`admin-op-card admin-notification-card priority-${c.priority}`} key={c.id}><div className="admin-notification-tags"><span className={`notification-priority ${c.priority}`}>{c.priority}</span><span>{c.category}</span></div><h3>{c.title}</h3><p>{c.message}</p><footer>{c.read_count}/{c.recipient_count} read</footer></article>)}</div></>}
@@ -238,7 +247,7 @@ function OperationsPanel({tab,setTab,admissions,apiRequests,courses,enrollments,
 
 function ApiRequestCard({item,pending,act}:{item:AdminApiRequest;pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){
   const [productName,setProductName]=useState(item.product_name||"Beyond Marks Foundry Gateway");
-  const [deployments,setDeployments]=useState((item.allowed_deployments||[]).join(", "));
+  const [deployments,setDeployments]=useState((item.allowed_deployments?.length?item.allowed_deployments:item.requested_deployments||[]).join(", "));
   const [quotaLimit,setQuotaLimit]=useState(String(item.quota_limit||10000));
   const [quotaUnit,setQuotaUnit]=useState<"requests"|"tokens"|"images"|"seconds">(item.quota_unit==="tokens"||item.quota_unit==="images"||item.quota_unit==="seconds"?item.quota_unit:"requests");
   const [expiresAt,setExpiresAt]=useState(item.expires_at?new Date(item.expires_at).toISOString().slice(0,16):new Date(Date.now()+30*86400000).toISOString().slice(0,16));
@@ -256,6 +265,8 @@ function ApiRequestCard({item,pending,act}:{item:AdminApiRequest;pending:boolean
     <div className="api-request-heading"><span className={`admin-status ${item.status}`}><i/>{item.status}</span><time>{requestedAt}</time></div>
     <h3>{item.full_name}</h3>
     <p className="api-request-identity">{item.academy_id}{item.admission_number&&<><br/>Admission no. {item.admission_number}</>}</p>
+    {item.project_name&&<div className="api-request-project"><small>PROJECT · {item.estimated_usage||"starter"} usage</small><strong>{item.project_name}</strong><p>{item.intended_use}</p></div>}
+    {!!item.requested_deployments?.length&&<div className="api-deployment-request-list">{item.requested_deployments.map(deployment=><code key={deployment}>{deployment}</code>)}</div>}
     <div className="api-capability-list">{item.capabilities.map(capability=><span key={capability}>{capability}</span>)}</div>
     {item.other_requirements&&<div className="api-request-message"><strong>Student requirements</strong><p>{item.other_requirements}</p></div>}
     {canProvision?<div className="api-review-form">
@@ -274,6 +285,36 @@ function ApiRequestCard({item,pending,act}:{item:AdminApiRequest;pending:boolean
       </div>}
     </div>:<div className="api-review-summary"><strong>Administrator decision</strong><p>{item.review_notes||"No review note was added."}</p></div>}
   </article>{usage&&<UsageDialog details={usage} student={item.full_name} onClose={()=>setUsage(null)}/>}</>;
+}
+
+function ServiceRequestCard({item,pending,act}:{item:AdminServiceRequest;pending:boolean;act:(task:()=>Promise<unknown>)=>Promise<void>}){
+  const catalog=AZURE_SERVICE_CATALOG.find(value=>value.type===item.service_type);
+  const [displayName,setDisplayName]=useState(item.display_name||`${item.project_name} · ${catalog?.shortName||"Azure Service"}`);
+  const [quotaLimit,setQuotaLimit]=useState(String(item.quota_limit||item.requested_quota));
+  const [quotaUnit,setQuotaUnit]=useState<AzureQuotaUnit>(item.quota_unit||item.requested_unit);
+  const [expiresAt,setExpiresAt]=useState(item.expires_at?new Date(item.expires_at).toISOString().slice(0,16):new Date(Date.now()+30*86400000).toISOString().slice(0,16));
+  const [notes,setNotes]=useState(item.review_notes||"");
+  const [resourceReference,setResourceReference]=useState(String(item.resource_config?.resourceReference||""));
+  const [topUp,setTopUp]=useState(String(Math.max(1,Math.round((item.quota_limit||item.requested_quota)*.25))));
+  const entitlementActive=item.entitlement_status==="active";
+  const percent=item.quota_limit?Math.min(100,((item.usage_count||0)/item.quota_limit)*100):0;
+  const approve=()=>void act(()=>adminReviewServiceRequest(item.id,{decision:"approve",displayName:displayName.trim(),quotaLimit:Number(quotaLimit),quotaUnit,expiresAt:new Date(expiresAt).toISOString(),resourceConfig:{provisioningMode:"academy_managed",resourceReference:resourceReference.trim(),requestedConfiguration:item.configuration},notes:notes.trim()}));
+  return <article className={`admin-op-card service-request-admin-card status-${item.status}`}>
+    <div className="api-request-heading"><span className={`admin-status ${item.status}`}><i/>{item.status}</span><time>{new Date(item.created_at).toLocaleString()}</time></div>
+    <div className="service-admin-title"><span>{catalog?.shortName.slice(0,2).toUpperCase()||"AZ"}</span><div><small>{catalog?.name||item.service_type.replaceAll("_"," ")}</small><h3>{item.project_name}</h3></div></div>
+    <p className="api-request-identity">{item.full_name} · {item.academy_id}{item.admission_number&&<><br/>Admission no. {item.admission_number}</>}</p>
+    <div className="service-request-spec"><span><small>Plan</small><strong>{item.plan_code}</strong></span><span><small>Requested</small><strong>{formatServiceUnits(item.requested_quota,item.requested_unit)}</strong></span></div>
+    <div className="api-request-message"><strong>Student use case</strong><p>{item.use_case}</p></div>
+    {(item.status==="pending"||item.status==="approved")?<div className="api-review-form">
+      {item.entitlement_id&&<div className="service-admin-allowance"><div><span>Current allowance</span><strong>{formatServiceUnits(item.usage_count||0,item.quota_unit||item.requested_unit)} <small>/ {formatServiceUnits(item.quota_limit||0,item.quota_unit||item.requested_unit)}</small></strong></div><em className={`service-status ${item.entitlement_status}`}>{item.entitlement_status}</em><i><b style={{width:`${percent}%`}}/></i></div>}
+      <label><span>Entitlement name</span><input value={displayName} onChange={event=>setDisplayName(event.target.value)}/></label>
+      <div className="api-limit-fields"><label><span>Allowance</span><input type="number" min="1" value={quotaLimit} onChange={event=>setQuotaLimit(event.target.value)}/></label><label><span>Unit</span><select value={quotaUnit} onChange={event=>setQuotaUnit(event.target.value as AzureQuotaUnit)} disabled>{["bytes","compute_minutes","gpu_minutes","database_mb","executions","requests","pages","minutes","messages","events","log_mb"].map(unit=><option key={unit} value={unit}>{unit.replaceAll("_"," ")}</option>)}</select></label><label><span>Expires</span><input type="datetime-local" value={expiresAt} onChange={event=>setExpiresAt(event.target.value)}/></label></div>
+      <label><span>Azure resource reference <small>Optional internal resource ID/name</small></span><input value={resourceReference} onChange={event=>setResourceReference(event.target.value)} placeholder="/subscriptions/… or managed workspace reference"/></label>
+      <label><span>Administrator note</span><input value={notes} onChange={event=>setNotes(event.target.value)} placeholder="Approval details or rejection reason"/></label>
+      <div className="admin-row-actions api-review-actions"><button className="success" disabled={pending||displayName.trim().length<2||Number(quotaLimit)<1||!expiresAt} onClick={approve}>{item.entitlement_id?"Renew & apply allowance":"Approve service access"}</button>{item.status==="pending"&&<button className="danger" disabled={pending||notes.trim().length<3} onClick={()=>void act(()=>adminReviewServiceRequest(item.id,{decision:"reject",notes:notes.trim()}))}>Reject request</button>}</div>
+      {item.entitlement_id&&<div className="api-lifecycle"><div><input type="number" min="1" value={topUp} onChange={event=>setTopUp(event.target.value)}/><button disabled={pending||Number(topUp)<1||!entitlementActive} onClick={()=>void act(()=>adminManageServiceEntitlement(item.entitlement_id!,{action:"topUp",amount:Number(topUp),notes:"Administrator top-up"}))}>Top up</button></div><button disabled={pending} onClick={()=>void act(()=>adminManageServiceEntitlement(item.entitlement_id!,{action:"reset",notes:"Administrator usage reset"}))}>Reset usage</button><button disabled={pending} onClick={()=>void act(()=>adminManageServiceEntitlement(item.entitlement_id!,{action:entitlementActive?"suspend":"activate",notes:"Administrator lifecycle update"}))}>{entitlementActive?"Suspend":"Activate"}</button><button className="danger" disabled={pending||item.entitlement_status==="revoked"} onClick={()=>{if(window.confirm("Permanently revoke this Azure service allowance?"))void act(()=>adminManageServiceEntitlement(item.entitlement_id!,{action:"revoke",notes:"Administrator revocation"}));}}>Revoke</button></div>}
+    </div>:<div className="api-review-summary"><strong>Administrator decision</strong><p>{item.review_notes||"No review note was added."}</p></div>}
+  </article>;
 }
 
 function UsageDialog({details,student,onClose}:{details:ApiUsageDetails;student:string;onClose:()=>void}){

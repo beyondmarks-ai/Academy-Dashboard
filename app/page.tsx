@@ -7,6 +7,8 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import { AdminDashboard } from "@/components/admin-dashboard";
+import { AzureServiceCenter } from "@/components/azure-service-center";
+import { MODEL_CATALOG } from "@/lib/azure-catalog";
 import {
   createProject as createApiProject,
   getApiAccess,
@@ -25,6 +27,7 @@ import {
   type AcademyProject,
   type AcademySubscription,
   type AcademyCertificate,
+  type AcademyApiAccessRequest,
   type AdminEnrollment,
   type ApiUsageDetails,
 } from "@/lib/academy-api";
@@ -321,9 +324,14 @@ function DashboardDestination({ userName, authenticated, onSignOut }: { userName
   const [apiKeyError, setApiKeyError] = useState("");
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiSubscription, setApiSubscription] = useState<AcademySubscription | null>(null);
+  const [apiAccessRequests,setApiAccessRequests]=useState<AcademyApiAccessRequest[]>([]);
   const [apiUsage,setApiUsage]=useState<ApiUsageDetails|null>(null);
   const [gatewayBaseUrl,setGatewayBaseUrl]=useState("");
   const [selectedApiModels, setSelectedApiModels] = useState<string[]>([]);
+  const [modelFilter,setModelFilter]=useState("All");
+  const [apiProjectName,setApiProjectName]=useState("");
+  const [apiIntendedUse,setApiIntendedUse]=useState("");
+  const [apiUsageTier,setApiUsageTier]=useState<"starter"|"standard"|"advanced"|"custom">("starter");
   const [customApiRequirement, setCustomApiRequirement] = useState("");
   const [projectFilter, setProjectFilter] = useState<"working" | "finished">("working");
   const [projectComposerOpen, setProjectComposerOpen] = useState(false);
@@ -397,6 +405,7 @@ Finished and ready for integration.`,
         setProjects(projectData.map(projectFromApi));
         setNotifications(notificationData.data.map(notificationFromApi));
         setApiSubscription(apiAccess.subscriptions[0] || null);
+        setApiAccessRequests(apiAccess.requests);
         setGatewayBaseUrl(apiAccess.gatewayBaseUrl);
         setMyCourses(courseData);setMyCertificates(certificateData);
         setSyncError("");
@@ -555,9 +564,10 @@ Finished and ready for integration.`,
         <p className="api-option-status">
           {activeApiOption === "request" && "Request option selected. Complete verification to continue."}
           {activeApiOption === "accessed" && "Your approved key is encrypted and ready to use."}
-          {!activeApiOption && "Select an option to manage API access."}
+          {!activeApiOption && (apiAccessRequests[0]?.status==="pending"?"Your latest model request is awaiting administrator review.":apiAccessRequests[0]?.status==="rejected"?"Your latest request includes an administrator decision.":"Select an option to manage model access.")}
         </p>
       </section>
+      <AzureServiceCenter authenticated={authenticated} onError={setSyncError}/>
 
       <section className="projects-box" aria-labelledby="projects-title">
         <div className="projects-heading">
@@ -729,17 +739,21 @@ Finished and ready for integration.`,
 
       {apiRequestOpen && (
         <div className="api-request-modal-layer" role="presentation" onMouseDown={() => setApiRequestOpen(false)}>
-          <section className="api-request-modal" role="dialog" aria-modal="true" aria-labelledby="api-request-title" onMouseDown={(event) => event.stopPropagation()}>
+          <section className="api-request-modal model-request-modal" role="dialog" aria-modal="true" aria-labelledby="api-request-title" onMouseDown={(event) => event.stopPropagation()}>
             <button type="button" className="api-request-close" aria-label="Close API request" onClick={() => setApiRequestOpen(false)}>×</button>
-            <span className="api-request-kicker">DEVELOPER ACCESS</span>
-            <h2 id="api-request-title">Request an API key</h2>
-            <p>Select every model capability your project needs. Access is reviewed according to academy policy.</p>
+            <span className="api-request-kicker">ACADEMY MODEL CATALOGUE</span>
+            <h2 id="api-request-title">Build your model access</h2>
+            <p>Choose exact live deployments, describe your project and request one professionally governed Academy key.</p>
             <form onSubmit={async (event) => {
               event.preventDefault();
               if (authenticated) {
                 try {
-                  await requestApiAccess(selectedApiModels, customApiRequirement);
+                  const categories=Array.from(new Set(selectedApiModels.map(deployment=>MODEL_CATALOG.find(model=>model.deployment===deployment)?.category).filter(Boolean)));
+                  const capabilities=["Azure AI Foundry",...categories.map(category=>category==="Images"?"Image Models":category==="Video"?"Video Models":category==="Audio"?"Speech & Audio":category==="Embeddings"?"Embedding Models":"Text & Language")];
+                  const submitted=await requestApiAccess({capabilities:Array.from(new Set(capabilities)),deployments:selectedApiModels,projectName:apiProjectName,intendedUse:apiIntendedUse,estimatedUsage:apiUsageTier,otherRequirements:customApiRequirement});
+                  setApiAccessRequests(items=>[submitted,...items]);
                   setSyncError("");
+                  setSelectedApiModels([]);setApiProjectName("");setApiIntendedUse("");setCustomApiRequirement("");setApiUsageTier("starter");
                 } catch (error) {
                   setSyncError(error instanceof Error ? error.message : "The API access request could not be submitted.");
                   return;
@@ -747,32 +761,26 @@ Finished and ready for integration.`,
               }
               setApiRequestOpen(false);
             }}>
+              <div className="model-request-context">
+                <label><span>Project name</span><input value={apiProjectName} onChange={event=>setApiProjectName(event.target.value)} minLength={2} maxLength={120} placeholder="My AI application" required/></label>
+                <label><span>Expected monthly use</span><select value={apiUsageTier} onChange={event=>setApiUsageTier(event.target.value as typeof apiUsageTier)}><option value="starter">Starter · prototypes</option><option value="standard">Standard · regular development</option><option value="advanced">Advanced · intensive workloads</option><option value="custom">Custom · explain below</option></select></label>
+              </div>
               <fieldset>
-                <legend>Model access</legend>
+                <legend>Live model deployments <small>{selectedApiModels.length} selected</small></legend>
+                <nav className="model-filter-tabs" aria-label="Filter model catalogue">{["All","Code & reasoning","Chat","Images","Video","Audio","Embeddings"].map(category=><button type="button" key={category} className={modelFilter===category?"active":""} onClick={()=>setModelFilter(category)}>{category}</button>)}</nav>
                 <div className="model-access-grid">
-                  {[
-                    ["Azure AI Foundry", "/model-icons/azure-foundry.png", "Hosted model catalog"],
-                    ["Text & Language", "/model-icons/text-language.png", "Chat and reasoning models"],
-                    ["Image Models", "/model-icons/image-models.png", "Generate and edit images"],
-                    ["Video Models", "/model-icons/video-models.png", "Create and transform video"],
-                    ["Speech & Audio", "/model-icons/speech-audio.png", "Speech, voice and transcription"],
-                    ["Embedding Models", "/model-icons/embeddings.png", "Search and retrieval vectors"],
-                    ["Realtime Models", "/model-icons/realtime.png", "Low-latency interactions"],
-                    ["Safety Models", "/model-icons/safety.png", "Moderation and safeguards"],
-                  ].map(([name, icon, description]) => {
-                    const selected = selectedApiModels.includes(name);
+                  {MODEL_CATALOG.filter(model=>modelFilter==="All"||model.category===modelFilter).map(model => {
+                    const selected = selectedApiModels.includes(model.deployment);
                     return (
                       <button
                         type="button"
                         className={selected ? "selected" : ""}
                         aria-pressed={selected}
-                        key={name}
-                        onClick={() => setSelectedApiModels((models) => selected ? models.filter((model) => model !== name) : [...models, name])}
+                        key={model.deployment}
+                        onClick={() => setSelectedApiModels((models) => selected ? models.filter((value) => value !== model.deployment) : [...models, model.deployment])}
                       >
-                        <span className="model-category-icon" aria-hidden="true">
-                          <Image src={icon} alt="" width={52} height={52} />
-                        </span>
-                        <div><strong>{name}</strong><small>{description}</small></div>
+                        <span className="model-deployment-mark" aria-hidden="true">{model.accent}</span>
+                        <div><strong>{model.name}</strong><code>{model.deployment}</code><small>{model.description}</small><em><b>{model.api}</b><b>{model.meter}</b></em></div>
                         <i>{selected ? "✓" : "+"}</i>
                       </button>
                     );
@@ -780,14 +788,18 @@ Finished and ready for integration.`,
                 </div>
               </fieldset>
               <label className="custom-api-field">
+                <span>What are you building?</span>
+                <textarea value={apiIntendedUse} onChange={(event) => setApiIntendedUse(event.target.value)} minLength={10} maxLength={2000} placeholder="Describe the application, who will use it, and how the selected models fit the workflow." rows={3} required />
+              </label>
+              <label className="custom-api-field">
                 <span>Other requirements <small>Optional</small></span>
-                <textarea value={customApiRequirement} onChange={(event) => setCustomApiRequirement(event.target.value)} placeholder="Describe another model, provider, usage requirement, expected volume, or integration..." rows={4} />
+                <textarea value={customApiRequirement} onChange={(event) => setCustomApiRequirement(event.target.value)} placeholder="Add integration details, expected peaks, special output formats, or administrator notes." rows={3} />
               </label>
               <div className="api-request-summary">
                 <span>{selectedApiModels.length}</span>
-                <p><strong>Capabilities selected</strong><small>{selectedApiModels.length ? selectedApiModels.join(" • ") : "Choose at least one model category"}</small></p>
+                <p><strong>Exact deployments selected</strong><small>{selectedApiModels.length ? selectedApiModels.join(" • ") : "Choose at least one live deployment"}</small></p>
               </div>
-              <button className="api-request-submit" type="submit" disabled={!selectedApiModels.length}>Submit API key request</button>
+              <button className="api-request-submit" type="submit" disabled={!selectedApiModels.length||apiProjectName.trim().length<2||apiIntendedUse.trim().length<10}>Submit model access request</button>
             </form>
           </section>
         </div>
