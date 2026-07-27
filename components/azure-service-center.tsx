@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { createPortal } from "react-dom";
 import { AZURE_SERVICE_CATALOG, formatServiceUnits } from "@/lib/azure-catalog";
 import {
   getServiceAccess,
@@ -33,12 +32,6 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
     catch(error){onError(error instanceof Error?error.message:"Azure service access could not be loaded.");}
   };
   useEffect(()=>{void refresh();},[authenticated]);
-  useEffect(()=>{
-    if(!open)return;
-    const previousOverflow=document.body.style.overflow;
-    document.body.style.overflow="hidden";
-    return()=>{document.body.style.overflow=previousOverflow;};
-  },[open]);
 
   const active=overview.entitlements.filter(item=>item.status==="active");
   const pendingRequests=overview.requests.filter(item=>item.status==="pending");
@@ -93,7 +86,7 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
       <footer><button type="button" onClick={()=>{setView("catalog");setOpen(true);}}>Browse all services</button><button type="button" onClick={()=>{setView("ledger");setOpen(true);}}>Open usage ledger</button></footer>
     </section>
 
-    {open&&typeof document!=="undefined"&&createPortal(<div className="azure-service-modal-layer" onMouseDown={()=>setOpen(false)}>
+    {open&&<div className="azure-service-modal-layer" onMouseDown={()=>setOpen(false)}>
       <section className="azure-service-modal" role="dialog" aria-modal="true" aria-labelledby="azure-hub-title" onMouseDown={event=>event.stopPropagation()}>
         <button className="azure-service-close" type="button" onClick={()=>setOpen(false)} aria-label="Close Azure services">×</button>
         <header className="azure-hub-header"><span>BEYOND MARKS CLOUD ACCESS</span><h2 id="azure-hub-title">Azure Service Center</h2><p>Request governed resources and track every approved allowance from one workspace.</p></header>
@@ -128,6 +121,6 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
           {!!overview.requests.length&&<div className="azure-request-history"><h3>Request history</h3>{overview.requests.map(item=><article key={item.id}><span className={`service-status ${item.status}`}>{item.status}</span><div><strong>{AZURE_SERVICE_CATALOG.find(value=>value.type===item.service_type)?.name||item.service_type}</strong><small>{item.project_name} · {item.plan_code} · {new Date(item.created_at).toLocaleDateString()}</small></div>{item.review_notes&&<p>{item.review_notes}</p>}</article>)}</div>}
         </div>}
       </section>
-    </div>,document.body)}
+    </div>}
   </>;
 }

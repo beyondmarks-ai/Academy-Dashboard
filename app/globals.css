@@ -3277,6 +3277,12 @@
   z-index: 1000;
   isolation: isolate;
 }
+.dashboard-left-stack:has(.azure-service-modal-layer) {
+  z-index: 1000;
+}
+body:has(.azure-service-modal-layer) {
+  overflow: hidden;
+}
 .project-modal-close,
 .api-request-close,
 .notification-modal-close,
