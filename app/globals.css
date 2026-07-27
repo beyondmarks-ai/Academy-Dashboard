@@ -3273,6 +3273,10 @@
   background: rgba(0, 0, 0, .78);
   backdrop-filter: blur(8px);
 }
+.azure-service-modal-layer {
+  z-index: 1000;
+  isolation: isolate;
+}
 .project-modal-close,
 .api-request-close,
 .notification-modal-close,
