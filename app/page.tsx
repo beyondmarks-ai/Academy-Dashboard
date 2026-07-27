@@ -538,6 +538,19 @@ Finished and ready for integration.`,
 
       {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
 
+      <header className="dashboard-topbar">
+        <div className="dashboard-topbar-brand">
+          <span><Image src="/beyond-marks-logo.jpeg" alt="" fill sizes="42px"/></span>
+          <div><strong>Beyond Marks</strong><small>Student workspace</small></div>
+        </div>
+        <div className="dashboard-topbar-status"><i/><span>Academy systems operational</span></div>
+        <nav aria-label="Dashboard shortcuts">
+          <a href="/docs/api">API documentation</a>
+          <button type="button" onClick={()=>document.getElementById("notification-title")?.scrollIntoView({behavior:"smooth",block:"center"})}>Updates <span>{notifications.filter(item=>item.unread).length}</span></button>
+          <span className="dashboard-user-avatar">{userName.slice(0,1).toUpperCase()}</span>
+        </nav>
+      </header>
+
       <div className="dashboard-left-stack">
       <section className="learner-academics-box">
         <div className="projects-heading"><div><p>ACADEMY PROGRESS</p><h2>My Courses & Certificates</h2></div></div>
@@ -834,6 +847,7 @@ Finished and ready for integration.`,
               <span className="notification-open-label">Read</span>
             </button>
           ))}
+          {!notifications.length&&<div className="notification-empty"><span>✓</span><strong>You&apos;re all caught up</strong><p>Important Academy updates and approval decisions will appear here.</p></div>}
         </div>
         <button
           type="button"
@@ -875,10 +889,17 @@ Finished and ready for integration.`,
         />
       </div>
       <section className="dashboard-welcome" aria-labelledby="dashboard-welcome-title">
-        <div className="dashboard-welcome-mark" aria-hidden="true"><i /><span /><i /></div>
-        <p>YOUR LEARNING SPACE</p>
-        <h1 id="dashboard-welcome-title">Welcome, <span>{userName}</span>!</h1>
-        <div className="dashboard-welcome-rule" aria-hidden="true" />
+        <div className="dashboard-hero-copy">
+          <div className="dashboard-welcome-mark" aria-hidden="true"><i /><span /><i /></div>
+          <p>YOUR LEARNING SPACE</p>
+          <h1 id="dashboard-welcome-title">Welcome back, <span>{userName}</span></h1>
+          <small>Manage your Academy progress, developer access, Azure services and project work from one focused workspace.</small>
+        </div>
+        <div className="dashboard-hero-metrics" aria-label="Workspace overview">
+          <article><span>COURSES</span><strong>{myCourses.length}</strong><small>{myCourses.filter(course=>course.status==="completed").length} completed</small></article>
+          <article><span>MODEL ACCESS</span><strong>{apiSubscription?.status==="active"?"Live":apiAccessRequests[0]?.status==="pending"?"Review":"Ready"}</strong><small>{apiSubscription?.allowed_deployments.length||0} deployments</small></article>
+          <article><span>PROJECTS</span><strong>{projects.length}</strong><small>{projects.filter(project=>project.status==="working").length} in progress</small></article>
+        </div>
       </section>
     </section>
   );
