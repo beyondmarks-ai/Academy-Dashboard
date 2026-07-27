@@ -894,6 +894,10 @@ Finished and ready for integration.`,
           <p>YOUR LEARNING SPACE</p>
           <h1 id="dashboard-welcome-title">Welcome back, <span>{userName}</span></h1>
           <small>Manage your Academy progress, developer access, Azure services and project work from one focused workspace.</small>
+          <div className="dashboard-hero-actions">
+            <button type="button" className="dashboard-hero-primary" onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>Request model access <span>→</span></button>
+            <button type="button" className="dashboard-hero-secondary" onClick={() => document.getElementById("azure-services-title")?.scrollIntoView({behavior:"smooth", block:"center"})}>Explore Azure services</button>
+          </div>
         </div>
         <div className="dashboard-hero-metrics" aria-label="Workspace overview">
           <article><span>COURSES</span><strong>{myCourses.length}</strong><small>{myCourses.filter(course=>course.status==="completed").length} completed</small></article>

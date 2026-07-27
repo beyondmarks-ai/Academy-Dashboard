@@ -2163,6 +2163,38 @@
   line-height: 1.7;
   letter-spacing: 0;
 }
+.dashboard-hero-actions {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.dashboard-hero-actions button {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font: 800 10px/1 "DM Sans", sans-serif;
+  cursor: pointer;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease;
+}
+.dashboard-hero-primary {
+  border: 1px solid #e5bd75;
+  color: #081827;
+  background: linear-gradient(105deg, #b77d36, #f1d18e 48%, #c38b42);
+  box-shadow: 0 8px 22px rgba(198, 143, 65, .16);
+}
+.dashboard-hero-primary span { margin-left: 8px; font-size: 15px; font-weight: 400; }
+.dashboard-hero-secondary {
+  border: 1px solid rgba(157, 183, 200, .16);
+  color: #b5c2c9;
+  background: rgba(255, 255, 255, .035);
+}
+.dashboard-hero-actions button:hover {
+  border-color: rgba(240, 207, 141, .68);
+  transform: translateY(-1px);
+}
+.dashboard-hero-secondary:hover { color: #f0cf8d; background: rgba(217, 170, 94, .07); }
 .dashboard-hero-metrics {
   position: relative;
   z-index: 1;
@@ -2593,6 +2625,8 @@
   }
   .dashboard-welcome h1 { font-size: clamp(35px, 11vw, 48px); }
   .dashboard-hero-copy > small { font-size: 12px; }
+  .dashboard-hero-actions { align-items: stretch; flex-direction: column; }
+  .dashboard-hero-actions button { width: 100%; }
   .dashboard-hero-metrics { grid-template-columns: 1fr; }
   .dashboard-hero-metrics article {
     padding: 13px 15px;
