@@ -541,9 +541,9 @@ Finished and ready for integration.`,
       <header className="dashboard-topbar">
         <div className="dashboard-topbar-brand">
           <span><Image src="/beyond-marks-logo.jpeg" alt="" fill sizes="42px"/></span>
-          <div><strong>Beyond Marks</strong><small>Student workspace</small></div>
+          <div><strong>Beyond Marks</strong><small>Academy workspace</small></div>
         </div>
-        <div className="dashboard-topbar-status"><i/><span>Academy systems operational</span></div>
+        <div className="dashboard-topbar-status"><i/><span>All systems operational</span></div>
         <nav aria-label="Dashboard shortcuts">
           <a href="/docs/api">API documentation</a>
           <button type="button" onClick={()=>document.getElementById("notification-title")?.scrollIntoView({behavior:"smooth",block:"center"})}>Updates <span>{notifications.filter(item=>item.unread).length}</span></button>
@@ -553,24 +553,24 @@ Finished and ready for integration.`,
 
       <div className="dashboard-left-stack">
       <section className="learner-academics-box">
-        <div className="projects-heading"><div><p>ACADEMY PROGRESS</p><h2>My Courses & Certificates</h2></div></div>
+        <div className="projects-heading"><div><p>Learning</p><h2>Courses and certificates</h2></div></div>
         <div className="learner-course-list">{myCourses.length?myCourses.map(course=><article key={course.id}><div><strong>{course.course_title||course.title}</strong><small>{course.status}</small></div><span>{course.progress}%</span><i><b style={{width:`${course.progress}%`}}/></i></article>):<p>No course enrollments yet.</p>}</div>
         <div className="learner-certificate-list">{myCertificates.map(certificate=><a key={certificate.id} href={`/api/academy/v1/certificates/${certificate.id}/download`}><span>Certificate</span><strong>{certificate.course_title}</strong><small>{certificate.verification_number}</small></a>)}</div>
       </section>
       <section className="api-access-box" aria-labelledby="api-access-title">
         <div className="api-access-heading">
           <span className="api-access-icon" aria-hidden="true"><ApiKeyIcon type="key" /></span>
-          <div><p>DEVELOPER TOOLS</p><h2 id="api-access-title">API Access</h2></div>
+          <div><p>Developer access</p><h2 id="api-access-title">Models and API keys</h2></div>
         </div>
         <div className="api-option-list">
           <button type="button" className={activeApiOption === "request" ? "active" : ""} onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>
             <span><ApiKeyIcon type="plus" /></span>
-            <div><strong>Request API Key</strong><small>Submit a new access request</small></div>
+            <div><strong>Request access</strong><small>Choose models and submit a request</small></div>
             <i>›</i>
           </button>
           <button type="button" className={activeApiOption === "accessed" ? "active" : ""} onClick={() => { setActiveApiOption("accessed"); setApiKeyVisible(false); setRevealedApiKey(""); setApiKeyError(""); setApiKeyCopied(false); setApiUsage(null); setApiKeyModalOpen(true); }}>
             <span><ApiKeyIcon type="shield" /></span>
-            <div><strong>Accessed API Key</strong><small>View your approved key</small></div>
+            <div><strong>Manage API key</strong><small>View approved credentials and usage</small></div>
             <i>›</i>
           </button>
         </div>
@@ -584,8 +584,8 @@ Finished and ready for integration.`,
 
       <section className="projects-box" aria-labelledby="projects-title">
         <div className="projects-heading">
-          <div><p>PROJECT WORKSPACE</p><h2 id="projects-title">My Projects</h2></div>
-          <button type="button" onClick={() => setProjectComposerOpen(true)}><span>+</span> Add</button>
+          <div><p>Projects</p><h2 id="projects-title">Your work</h2></div>
+          <button type="button" onClick={() => setProjectComposerOpen(true)}><span>+</span> New project</button>
         </div>
         <div className="project-filter" role="tablist" aria-label="Filter projects">
           <button type="button" role="tab" aria-selected={projectFilter === "working"} className={projectFilter === "working" ? "active" : ""} onClick={() => setProjectFilter("working")}>
@@ -754,9 +754,9 @@ Finished and ready for integration.`,
         <div className="api-request-modal-layer" role="presentation" onMouseDown={() => setApiRequestOpen(false)}>
           <section className="api-request-modal model-request-modal" role="dialog" aria-modal="true" aria-labelledby="api-request-title" onMouseDown={(event) => event.stopPropagation()}>
             <button type="button" className="api-request-close" aria-label="Close API request" onClick={() => setApiRequestOpen(false)}>×</button>
-            <span className="api-request-kicker">ACADEMY MODEL CATALOGUE</span>
-            <h2 id="api-request-title">Build your model access</h2>
-            <p>Choose exact live deployments, describe your project and request one professionally governed Academy key.</p>
+            <span className="api-request-kicker">Developer access</span>
+            <h2 id="api-request-title">Request model access</h2>
+            <p>Select the deployments your project needs and submit them for Academy approval.</p>
             <form onSubmit={async (event) => {
               event.preventDefault();
               if (authenticated) {
@@ -824,7 +824,7 @@ Finished and ready for integration.`,
             <div className="notification-illustration" aria-hidden="true">
               <Image src="/ringing-bell-loop.svg" alt="" fill sizes="60px" />
             </div>
-            <div><h2 id="notification-title">Notifications</h2><p><i /> LIVE UPDATES</p></div>
+            <div><h2 id="notification-title">Activity</h2><p><i /> Inbox</p></div>
           </div>
           <span className="notification-count">{notifications.filter((item) => item.unread).length}</span>
         </div>
@@ -891,12 +891,12 @@ Finished and ready for integration.`,
       <section className="dashboard-welcome" aria-labelledby="dashboard-welcome-title">
         <div className="dashboard-hero-copy">
           <div className="dashboard-welcome-mark" aria-hidden="true"><i /><span /><i /></div>
-          <p>YOUR LEARNING SPACE</p>
-          <h1 id="dashboard-welcome-title">Welcome back, <span>{userName}</span></h1>
-          <small>Manage your Academy progress, developer access, Azure services and project work from one focused workspace.</small>
+          <p>Overview</p>
+          <h1 id="dashboard-welcome-title">Welcome, <span>{userName}</span></h1>
+          <small>Courses, developer resources, cloud access and project activity in one workspace.</small>
           <div className="dashboard-hero-actions">
-            <button type="button" className="dashboard-hero-primary" onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>Request model access <span>→</span></button>
-            <button type="button" className="dashboard-hero-secondary" onClick={() => document.getElementById("azure-services-title")?.scrollIntoView({behavior:"smooth", block:"center"})}>Explore Azure services</button>
+            <button type="button" className="dashboard-hero-primary" onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>Request access <span>→</span></button>
+            <button type="button" className="dashboard-hero-secondary" onClick={() => document.getElementById("azure-services-title")?.scrollIntoView({behavior:"smooth", block:"center"})}>Browse services</button>
           </div>
         </div>
         <div className="dashboard-hero-metrics" aria-label="Workspace overview">

@@ -2693,3 +2693,754 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Enterprise workspace — neutral black product system */
+.dashboard-screen {
+  --workspace-gold: #ffffff;
+  --workspace-gold-soft: #ffffff;
+  --workspace-panel: #0a0a0a;
+  --workspace-panel-strong: #080808;
+  --workspace-line: #242424;
+  --workspace-muted: #8a8a8a;
+  padding: 0 max(24px, calc((100vw - 1440px) / 2)) 56px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 372px);
+  grid-template-rows: 64px auto minmax(0, 1fr);
+  gap: 24px;
+  color: #f5f5f5;
+  background: #050505;
+  font-family: "DM Sans", Arial, sans-serif;
+}
+
+.dashboard-destination-bg {
+  background:
+    radial-gradient(circle at 72% -20%, rgba(255, 255, 255, .055), transparent 35%),
+    #050505;
+}
+.dashboard-destination-bg::after { display: none; }
+
+.dashboard-topbar {
+  height: 64px;
+  padding: 0 0 0 60px;
+  grid-template-columns: minmax(210px, 1fr) auto minmax(290px, 1fr);
+  gap: 20px;
+  border-color: #202020;
+  background: rgba(5, 5, 5, .92);
+  backdrop-filter: blur(18px);
+}
+.dashboard-topbar-brand { gap: 10px; }
+.dashboard-topbar-brand > span {
+  width: 34px;
+  height: 34px;
+  border-color: #303030;
+  box-shadow: none;
+  filter: grayscale(1) contrast(1.1);
+}
+.dashboard-topbar-brand strong {
+  color: #f5f5f5;
+  font: 600 14px/1.2 "DM Sans", Arial, sans-serif;
+}
+.dashboard-topbar-brand small {
+  margin-top: 2px;
+  color: #707070;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+.dashboard-topbar-status {
+  height: 28px;
+  padding: 0 10px;
+  border-color: #252525;
+  color: #8d8d8d;
+  background: #0b0b0b;
+  font-size: 9px;
+}
+.dashboard-topbar-status i {
+  width: 5px;
+  height: 5px;
+  background: #4ade80;
+  box-shadow: none;
+}
+.dashboard-topbar nav a,
+.dashboard-topbar nav button {
+  height: 34px;
+  padding: 0 11px;
+  border-color: transparent;
+  border-radius: 7px;
+  color: #8f8f8f;
+  background: transparent;
+  font-size: 10px;
+}
+.dashboard-topbar nav a:hover,
+.dashboard-topbar nav button:hover {
+  color: #f5f5f5;
+  border-color: #272727;
+  background: #111111;
+  transform: none;
+}
+.dashboard-topbar nav button > span {
+  min-width: 18px;
+  height: 18px;
+  color: #050505;
+  background: #f5f5f5;
+  font-size: 8px;
+}
+.dashboard-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-color: #303030;
+  border-radius: 8px;
+  color: #f5f5f5;
+  background: #171717;
+  box-shadow: none;
+}
+
+.hamburger-button {
+  top: 12px;
+  left: max(24px, calc((100vw - 1440px) / 2));
+  width: 40px;
+  height: 40px;
+  border-color: #272727;
+  border-radius: 8px;
+  background: #0b0b0b;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.hamburger-button:hover {
+  border-color: #454545;
+  background: #151515;
+  transform: none;
+}
+.hamburger-button span {
+  left: 10px;
+  width: 18px;
+  background: #d6d6d6;
+}
+.hamburger-button span:nth-child(1) { top: 12px; }
+.hamburger-button span:nth-child(2) { top: 19px; width: 14px; }
+.hamburger-button span:nth-child(3) { top: 26px; }
+.hamburger-button.is-open span:nth-child(1),
+.hamburger-button.is-open span:nth-child(3) { top: 19px; }
+
+.dashboard-sidebar {
+  border-color: #242424;
+  background: #080808;
+  box-shadow: 24px 0 70px rgba(0, 0, 0, .55);
+}
+.dashboard-sidebar::before { display: none; }
+.sidebar-branding > span {
+  border-color: #303030;
+  filter: grayscale(1);
+}
+.sidebar-branding strong {
+  color: #f3f3f3;
+  font-family: "DM Sans", Arial, sans-serif;
+  font-weight: 600;
+}
+.sidebar-branding small,
+.sidebar-section-label { color: #666666; }
+.dashboard-sidebar nav button {
+  color: #8b8b8b;
+  border-radius: 7px;
+}
+.dashboard-sidebar nav button:hover {
+  color: #ededed;
+  background: #121212;
+  transform: none;
+}
+.dashboard-sidebar nav button.active {
+  color: #ffffff;
+  background: #171717;
+  box-shadow: inset 2px 0 #f4f4f4;
+}
+.dashboard-sidebar nav button i { color: #666666; }
+.dashboard-sidebar nav button em {
+  border-color: #292929;
+  color: #6e6e6e;
+  background: #101010;
+}
+.sidebar-account { border-color: #242424; }
+.sidebar-account > span {
+  color: #f5f5f5;
+  background: #1a1a1a;
+}
+.sidebar-signout {
+  border-color: #292929;
+  color: #8a8a8a;
+  background: #0e0e0e;
+}
+.sidebar-signout:hover {
+  color: #ffffff;
+  border-color: #404040;
+  background: #151515;
+}
+
+.dashboard-welcome {
+  padding: 28px 0 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(400px, 500px);
+  gap: 48px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid #202020;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+  opacity: 1;
+}
+.dashboard-welcome::before,
+.dashboard-welcome-mark { display: none; }
+.dashboard-hero-copy > p {
+  margin-bottom: 8px;
+  color: #777777;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.dashboard-welcome h1 {
+  max-width: none;
+  color: #f5f5f5;
+  font-family: "DM Sans", Arial, sans-serif;
+  font-size: clamp(30px, 3.2vw, 43px);
+  font-weight: 500;
+  letter-spacing: -.035em;
+  line-height: 1.1;
+  text-shadow: none;
+}
+.dashboard-welcome h1 span {
+  color: #f5f5f5;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+}
+.dashboard-hero-copy > small {
+  max-width: 580px;
+  margin-top: 10px;
+  color: #888888;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.dashboard-hero-actions { margin-top: 18px; gap: 8px; }
+.dashboard-hero-actions button {
+  height: 36px;
+  padding: 0 13px;
+  border-radius: 7px;
+  font-size: 10px;
+  box-shadow: none;
+}
+.dashboard-hero-primary {
+  border-color: #f0f0f0;
+  color: #080808;
+  background: #f0f0f0;
+}
+.dashboard-hero-primary:hover {
+  border-color: #ffffff !important;
+  background: #ffffff;
+}
+.dashboard-hero-primary span { font-size: 13px; }
+.dashboard-hero-secondary {
+  border-color: #2b2b2b;
+  color: #b5b5b5;
+  background: #0d0d0d;
+}
+.dashboard-hero-secondary:hover {
+  color: #ffffff;
+  border-color: #444444 !important;
+  background: #151515;
+}
+.dashboard-hero-metrics {
+  border-color: #242424;
+  border-radius: 10px;
+  background: #090909;
+  backdrop-filter: none;
+}
+.dashboard-hero-metrics article {
+  padding: 16px;
+  border-color: #242424;
+}
+.dashboard-hero-metrics span {
+  color: #696969;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+.dashboard-hero-metrics strong {
+  margin: 7px 0 5px;
+  color: #f0f0f0;
+  font: 600 22px/1 "DM Sans", Arial, sans-serif;
+}
+.dashboard-hero-metrics small {
+  color: #777777;
+  font-size: 9px;
+}
+
+.dashboard-left-stack {
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.api-access-box { order: 1; }
+.learner-academics-box { order: 2; }
+.azure-services-box { order: 3; }
+.projects-box { order: 4; }
+
+.learner-academics-box,
+.api-access-box,
+.azure-services-box,
+.projects-box,
+.notification-box {
+  border-color: #242424;
+  border-radius: 12px;
+  background: #0a0a0a;
+  box-shadow: none;
+  backdrop-filter: none;
+  animation: none;
+}
+.learner-academics-box,
+.api-access-box,
+.azure-services-box,
+.projects-box { padding: 20px; }
+
+.projects-heading p,
+.api-access-heading p,
+.azure-services-title p {
+  margin-bottom: 5px;
+  color: #707070;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.projects-heading h2,
+.api-access-heading h2,
+.azure-services-title h2,
+.notification-title-wrap h2 {
+  color: #eeeeee;
+  font-family: "DM Sans", Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.api-access-icon,
+.azure-service-glyph,
+.notification-illustration,
+.notification-bell {
+  border-color: #2d2d2d;
+  color: #d8d8d8;
+  background: #151515;
+  box-shadow: none;
+  filter: none;
+}
+
+.api-option-list { gap: 8px; }
+.api-option-list > button {
+  min-height: 72px;
+  padding: 11px 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 9px;
+  color: #dedede;
+  background: #111111;
+  box-shadow: none;
+}
+.api-option-list > button:first-child {
+  color: #090909;
+  border-color: #ededed;
+  background: #ededed;
+}
+.api-option-list > button:hover {
+  border-color: #474747;
+  background: #171717;
+  box-shadow: none;
+  transform: none;
+}
+.api-option-list > button:first-child:hover { color: #050505; background: #ffffff; }
+.api-option-list > button.active {
+  border-color: #676767;
+  background: #181818;
+  box-shadow: none;
+  transform: none;
+}
+.api-option-list > button:first-child.active {
+  color: #050505;
+  border-color: #ffffff;
+  background: #ffffff;
+}
+.api-option-list > button > span { color: currentColor; }
+.api-option-list small {
+  display: block;
+  margin-top: 3px;
+  color: #777777;
+  font-size: 9px;
+}
+.api-option-list > button:first-child small { color: #555555; }
+.api-option-status {
+  min-height: 0;
+  margin-top: 12px;
+  color: #777777;
+  font-size: 11px;
+}
+
+.learner-course-list article { border-color: #242424; }
+.learner-course-list strong,
+.learner-certificate-list strong { color: #e6e6e6; }
+.learner-course-list small,
+.learner-certificate-list small { color: #737373; }
+.learner-course-list article > span { color: #d4d4d4; }
+.learner-course-list i { background: #1d1d1d; }
+.learner-course-list b { background: #ededed; }
+.learner-certificate-list a {
+  border-color: #2a2a2a;
+  background: #111111;
+}
+.learner-certificate-list a > span { color: #8f8f8f; }
+
+.azure-live-indicator { color: #777777; }
+.azure-live-indicator i { background: #4ade80; box-shadow: none; }
+.azure-service-metrics article,
+.azure-service-preview button {
+  border-color: #252525;
+  background: #0f0f0f;
+}
+.project-list { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.azure-service-metrics small,
+.azure-service-metrics span,
+.azure-service-preview small { color: #6f6f6f; }
+.azure-service-metrics strong,
+.azure-service-preview strong { color: #e8e8e8; }
+.azure-service-preview button:hover {
+  border-color: #424242;
+  background: #151515;
+  transform: none;
+}
+.azure-service-preview button > i { color: #777777; }
+.azure-services-box > footer button {
+  border-color: #2b2b2b;
+  color: #c2c2c2;
+  background: #111111;
+}
+.azure-services-box > footer button:first-child {
+  color: #080808;
+  border-color: #eeeeee;
+  background: #eeeeee;
+}
+
+.projects-heading > button {
+  border-color: #303030;
+  color: #dedede;
+  background: #121212;
+}
+.projects-heading > button:hover { background: #191919; transform: none; }
+.project-filter {
+  border-color: #252525;
+  background: #070707;
+}
+.project-filter button { color: #737373; }
+.project-filter button.active {
+  color: #eeeeee;
+  background: #181818;
+  box-shadow: none;
+}
+.project-card {
+  border-color: #252525;
+  background: #0f0f0f;
+}
+.project-card:hover,
+.project-card:focus-visible {
+  border-color: #454545;
+  background: #121212;
+  transform: none;
+}
+.project-card h3 { color: #eeeeee; }
+.project-card > p { color: #858585; }
+.project-card-topline small,
+.project-card-topline time { color: #696969; }
+.project-status-dot.working { background: #60a5fa; box-shadow: none; }
+.project-status-dot.finished { background: #4ade80; box-shadow: none; }
+.project-actions a,
+.project-actions button {
+  border-color: #2d2d2d;
+  color: #9a9a9a;
+  background: #121212;
+}
+.project-actions a:hover,
+.project-actions button:not(:disabled):hover {
+  color: #ffffff;
+  border-color: #484848;
+}
+
+.notification-box { top: 88px; }
+.notification-heading {
+  min-height: 82px;
+  padding: 16px 18px;
+  border-color: #242424;
+}
+.notification-title-wrap p {
+  color: #707070;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.notification-title-wrap p i { background: #4ade80; box-shadow: none; }
+.notification-count {
+  border-color: #303030;
+  color: #eeeeee;
+  background: #151515;
+}
+.notification-card {
+  border-color: #242424;
+  background: #0f0f0f;
+}
+.notification-card.unread {
+  border-color: #313131;
+  background: #121212;
+}
+.notification-card:hover {
+  border-color: #454545;
+  background: #151515;
+  transform: none;
+}
+.notification-dot { border-color: #303030; background: #151515; }
+.notification-card.unread .notification-dot { border-color: #3b82f6; background: rgba(59, 130, 246, .12); }
+.notification-card.unread .notification-dot::after { background: #60a5fa; box-shadow: none; }
+.notification-card.priority-normal { border-left-color: #3b82f6; }
+.notification-card.priority-important { border-left-color: #8b5cf6; }
+.notification-card.priority-urgent { border-left-color: #ef4444; background: #121010; }
+.notification-priority.normal { color: #93c5fd; background: rgba(59, 130, 246, .1); }
+.notification-priority.important { color: #c4b5fd; background: rgba(139, 92, 246, .1); }
+.notification-priority.urgent { color: #fca5a5; background: rgba(239, 68, 68, .1); box-shadow: none; }
+.notification-open-label { color: #a0a0a0; }
+.mark-read-button {
+  border-color: #303030;
+  color: #d0d0d0;
+  background: #111111;
+}
+.mark-read-button:hover:not(:disabled) { color: #ffffff; background: #181818; }
+
+.dashboard-watermark {
+  width: min(360px, 38vw);
+  opacity: .45;
+}
+.dashboard-watermark img {
+  opacity: .025;
+  filter: grayscale(1) brightness(1.5);
+}
+.dashboard-watermark:hover img {
+  opacity: .08;
+  filter: grayscale(1) brightness(1.4);
+  mix-blend-mode: screen;
+}
+
+/* Neutral modal and service-center treatment */
+.dashboard-screen :is(
+  .api-key-modal,
+  .project-composer,
+  .readme-modal,
+  .api-request-modal,
+  .notification-modal,
+  .azure-service-modal
+) {
+  border-color: #2c2c2c;
+  color: #ededed;
+  background: #0b0b0b;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .72);
+}
+.dashboard-screen :is(
+  .api-key-modal-kicker,
+  .project-modal-kicker,
+  .api-request-kicker,
+  .notification-modal-category,
+  .azure-hub-header > span
+) { color: #777777; }
+.dashboard-screen :is(
+  .api-key-modal > h2,
+  .project-composer > h2,
+  .api-request-modal > h2,
+  .notification-modal h2,
+  .azure-hub-header h2,
+  .azure-detail-heading h3
+) {
+  color: #f1f1f1;
+  font-family: "DM Sans", Arial, sans-serif;
+  font-weight: 600;
+}
+.dashboard-screen :is(
+  .api-key-modal > p,
+  .project-composer > p,
+  .api-request-modal > p,
+  .azure-hub-header p,
+  .azure-detail-heading p
+) { color: #858585; }
+.api-request-modal-layer,
+.api-key-modal-layer,
+.project-modal-layer,
+.notification-modal-layer,
+.azure-service-modal-layer {
+  background: rgba(0, 0, 0, .78);
+  backdrop-filter: blur(8px);
+}
+.project-modal-close,
+.api-request-close,
+.notification-modal-close,
+.azure-service-close {
+  border-color: #303030;
+  color: #a0a0a0;
+  background: #141414;
+}
+.model-filter-tabs button,
+.azure-hub-tabs button {
+  color: #777777;
+}
+.model-filter-tabs button.active,
+.azure-hub-tabs button.active {
+  color: #ffffff;
+  border-color: #ffffff;
+  background: #161616;
+}
+.model-access-grid > button,
+.azure-catalog-list button,
+.azure-plan-grid button,
+.accessed-key-card,
+.azure-ledger-summary article,
+.azure-entitlement-grid > article {
+  border-color: #292929;
+  color: #b0b0b0;
+  background: #111111;
+}
+.model-access-grid > button:hover,
+.model-access-grid > button.selected,
+.azure-catalog-list button:hover,
+.azure-catalog-list button.active,
+.azure-plan-grid button.active {
+  color: #ffffff;
+  border-color: #4a4a4a;
+  background: #181818;
+  box-shadow: none;
+}
+.model-deployment-mark,
+.accessed-key-provider {
+  border-color: #363636;
+  color: #e5e5e5;
+  background: #171717;
+}
+.model-request-modal .model-access-grid code,
+.azure-plan-grid small,
+.service-quota-numbers strong,
+.azure-ledger-summary strong { color: #eeeeee; }
+.model-request-modal legend small { color: #888888; }
+.model-request-modal .model-access-grid strong { font-size: 13px; }
+.model-request-modal .model-access-grid code { font-size: 9px; }
+.model-request-modal .model-access-grid small {
+  color: #8a8a8a;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.model-request-modal .model-access-grid em b {
+  color: #a5b4c0;
+  background: #15191c;
+  font-size: 8px;
+}
+.model-access-grid > button.selected > i,
+.model-filter-tabs button.active { color: #ffffff; }
+.api-request-submit,
+.api-key-modal-done,
+.project-save-button,
+.azure-request-footer button {
+  border-color: #f0f0f0;
+  color: #070707;
+  background: #f0f0f0;
+  box-shadow: none;
+}
+.api-request-submit:disabled,
+.azure-request-footer button:disabled {
+  border-color: #2a2a2a;
+  color: #626262;
+  background: #151515;
+}
+.azure-hub-header { background: none; }
+.azure-hub-tabs { border-color: #262626; }
+.azure-catalog-list {
+  border-color: #262626;
+  background: #080808;
+}
+.azure-catalog-list button.active { box-shadow: inset 2px 0 #ffffff; }
+.azure-feature-row span {
+  border-color: #303030;
+  color: #a5a5a5;
+  background: #121212;
+}
+.azure-service-detail input,
+.azure-service-detail select,
+.azure-service-detail textarea,
+.model-request-context input,
+.model-request-context select,
+.project-composer input,
+.project-composer select,
+.project-composer textarea {
+  border-color: #303030;
+  color: #e6e6e6;
+  background: #121212;
+}
+.azure-service-detail input:focus,
+.azure-service-detail select:focus,
+.azure-service-detail textarea:focus,
+.project-composer input:focus,
+.project-composer select:focus,
+.project-composer textarea:focus {
+  border-color: #666666;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .06);
+}
+.service-quota-track,
+.api-quota-track { background: #202020; }
+.service-quota-track i,
+.api-quota-track i { background: #e8e8e8; box-shadow: none; }
+
+@media (max-width: 1180px) {
+  .dashboard-screen { padding-inline: 20px; }
+  .hamburger-button { left: 20px; }
+  .dashboard-welcome { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); }
+}
+
+@media (max-width: 900px) {
+  .dashboard-screen {
+    padding-inline: 18px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 64px auto auto auto;
+  }
+  .hamburger-button { left: 18px; }
+  .dashboard-welcome {
+    grid-column: 1;
+    grid-row: 2;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .dashboard-left-stack {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .notification-box {
+    position: relative;
+    top: auto;
+    grid-column: 1;
+    grid-row: 4;
+  }
+}
+
+@media (max-width: 680px) {
+  .dashboard-screen { padding-inline: 13px; }
+  .dashboard-topbar { padding-left: 52px; }
+  .hamburger-button { left: 13px; }
+  .dashboard-welcome { padding: 22px 0 20px; }
+  .dashboard-welcome h1 { font-size: 30px; }
+  .dashboard-hero-actions { flex-direction: row; }
+  .dashboard-hero-actions button { width: auto; }
+  .dashboard-hero-metrics article { padding: 12px 14px; }
+  .dashboard-hero-metrics strong { font-size: 18px; }
+  .learner-academics-box,
+  .api-access-box,
+  .azure-services-box,
+  .projects-box { padding: 16px; }
+  .dashboard-left-stack { grid-template-columns: minmax(0, 1fr); }
+  .api-option-list { grid-template-columns: 1fr; }
+  .api-option-list > button {
+    min-height: 66px;
+    align-items: center;
+    flex-direction: row;
+  }
+  .azure-service-preview { grid-template-columns: 1fr 1fr; }
+  .project-list { grid-template-columns: 1fr; }
+}
