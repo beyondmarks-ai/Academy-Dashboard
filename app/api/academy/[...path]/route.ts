@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOrigin } from "@/lib/same-origin";
 
 const SESSION_COOKIE = "bm_session";
 const allowedMethods = new Set(["GET", "POST", "PATCH", "PUT", "DELETE"]);
@@ -15,8 +16,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     return NextResponse.json({ error: { message: "Not found." } }, { status: 404 });
   }
 
-  const origin = request.headers.get("origin");
-  if (request.method !== "GET" && origin && origin !== request.nextUrl.origin) {
+  if (request.method !== "GET" && !isSameOrigin(request)) {
     return NextResponse.json({ error: { message: "Cross-origin request rejected." } }, { status: 403 });
   }
 

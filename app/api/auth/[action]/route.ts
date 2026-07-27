@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOrigin } from "@/lib/same-origin";
 
 const SESSION_COOKIE = "bm_session";
 const allowedActions = new Set(["login", "signup", "logout", "mfa-setup", "mfa-verify"]);
@@ -7,11 +8,6 @@ function backendBaseUrl() {
   const value = process.env.ACADEMY_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
   if (!value) throw new Error("ACADEMY_API_BASE_URL is not configured.");
   return value.replace(/\/$/, "");
-}
-
-function isSameOrigin(request: NextRequest) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === request.nextUrl.origin;
 }
 
 export async function POST(request: NextRequest, context: { params: Promise<{ action: string }> }) {
