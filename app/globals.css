@@ -673,6 +673,19 @@
 .learner-gateway-details>a { margin-top:11px;padding:9px 11px;display:flex;align-items:center;justify-content:space-between;border:1px solid rgba(217,170,94,.22);border-radius:8px;color:#e4c17d;background:rgba(217,170,94,.055);font-size:9px;font-weight:800;text-decoration:none; }
 .learner-gateway-details>a:hover { border-color:rgba(217,170,94,.5);background:rgba(217,170,94,.1); }
 .learner-gateway-details>a i { font-style:normal;font-size:12px; }
+.academy-env-block { position:relative;margin:11px 0 14px;display:block!important; }
+.academy-env-block pre { margin:0;padding:13px 88px 13px 13px;overflow-x:auto;border:1px solid rgba(170,194,212,.14);border-radius:8px;background:#030a10;scrollbar-width:thin; }
+.academy-env-block pre code { color:#dbe6ec;font:10px/1.75 Consolas,"Courier New",monospace;white-space:pre; }
+.academy-env-block button { position:absolute;top:8px;right:8px;height:31px;padding:0 10px;border:1px solid rgba(170,194,212,.2);border-radius:6px;color:#dbe6ec;background:#111c24;font-size:8px;font-weight:800;cursor:pointer; }
+.academy-env-block button:disabled { opacity:.45;cursor:not-allowed; }
+.academy-env-note { margin-top:11px!important;color:#8fa2ae!important;font-size:9px!important; }
+.dashboard-screen .learner-gateway-details > span { color:#a7a7a7;font-size:10px;letter-spacing:.1em; }
+.dashboard-screen .learner-gateway-details > p { color:#a0a0a0;font-size:11px;line-height:1.6; }
+.dashboard-screen .academy-env-block pre code { font-size:10.5px;line-height:1.8; }
+.dashboard-screen .academy-env-block button { font-size:9px; }
+.dashboard-screen .learner-gateway-details > small,
+.dashboard-screen .learner-gateway-details b { font-size:9px; }
+.dashboard-screen .learner-gateway-details > a { font-size:10px; }
 .learner-usage-details { margin-top:13px;padding-top:13px;border-top:1px solid rgba(255,255,255,.08); }
 .learner-usage-details>div:first-child { display:grid;grid-template-columns:repeat(3,1fr);gap:7px; }
 .learner-usage-details>div:first-child>span { padding:9px;border:1px solid rgba(255,255,255,.07);border-radius:8px;background:rgba(255,255,255,.02); }

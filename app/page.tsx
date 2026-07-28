@@ -323,6 +323,7 @@ function DashboardDestination({ userName, authenticated, onSignOut }: { userName
   const [apiKeyPending, setApiKeyPending] = useState(false);
   const [apiKeyError, setApiKeyError] = useState("");
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
+  const [apiEnvCopied, setApiEnvCopied] = useState(false);
   const [apiSubscription, setApiSubscription] = useState<AcademySubscription | null>(null);
   const [apiAccessRequests,setApiAccessRequests]=useState<AcademyApiAccessRequest[]>([]);
   const [apiUsage,setApiUsage]=useState<ApiUsageDetails|null>(null);
@@ -439,6 +440,7 @@ Finished and ready for integration.`,
     setRevealedApiKey("");
     setApiKeyError("");
     setApiKeyCopied(false);
+    setApiEnvCopied(false);
     setApiUsage(null);
   };
 
@@ -449,7 +451,7 @@ Finished and ready for integration.`,
       return;
     }
     if (!authenticated) {
-      setRevealedApiKey("bm-demo-credential-4479");
+      setRevealedApiKey("bm_live_demo_credential_4479");
       setApiKeyVisible(true);
       return;
     }
@@ -623,14 +625,14 @@ Finished and ready for integration.`,
         <div className="api-key-modal-layer" role="presentation" onMouseDown={closeApiKeyModal}>
           <section className="api-key-modal" role="dialog" aria-modal="true" aria-labelledby="accessed-key-name" onMouseDown={(event) => event.stopPropagation()}>
             <button className="project-modal-close" type="button" aria-label="Close accessed API key" onClick={closeApiKeyModal}>×</button>
-            <span className="api-key-modal-kicker">SECURE DEVELOPER ACCESS</span>
-            <h2>Accessed API key</h2>
-            <p>View and manage your approved model credential.</p>
+            <span className="api-key-modal-kicker">BEYOND MARKS DEVELOPER PLATFORM</span>
+            <h2>Academy API key</h2>
+            <p>This is your personal Beyond Marks credential. It is not an Azure key and can only call the Academy gateway.</p>
             <article className="accessed-key-card">
               <div className="accessed-key-topline">
-                <span className="accessed-key-provider" aria-hidden="true">{apiSubscription?.provider?.slice(0, 2).toUpperCase() || "AI"}</span>
+                <span className="accessed-key-provider" aria-hidden="true">BM</span>
                 <div>
-                  <strong id="accessed-key-name">{apiSubscription?.product_name || (authenticated ? "No approved API key" : "Demo API credential")}</strong>
+                  <strong id="accessed-key-name">{apiSubscription?.product_name || (authenticated ? "No approved Academy key" : "Demo Academy credential")}</strong>
                   <small><i /> {apiSubscription?.status || (authenticated ? "No access" : "Demo mode")}</small>
                 </div>
               </div>
@@ -663,7 +665,18 @@ Finished and ready for integration.`,
                 <div className="api-quota-meta"><span>{apiSubscription.usage_count.toLocaleString()} recorded usage</span><span>{apiSubscription.expires_at?`Expires ${new Date(apiSubscription.expires_at).toLocaleString()}`:"No expiry"}</span></div>
                 <p>This allowance is enforced by the Academy gateway before requests reach Azure Foundry.</p>
               </div>}
-              {apiSubscription?.credential_kind==="academy_gateway"&&<div className="learner-gateway-details"><span>ACADEMY FOUNDRY GATEWAY</span><code>{gatewayBaseUrl||"Loading gateway endpoint…"}</code><p>Use this OpenAI-compatible base URL with your revealed Academy key. Codex and Responses streaming are supported with exact final usage metering.</p><small>Allowed deployments</small><div>{apiSubscription.allowed_deployments.map(deployment=><b key={deployment}>{deployment}</b>)}</div><a href="/docs/api" target="_blank" rel="noreferrer">Open setup guide &amp; API documentation <i>↗</i></a></div>}
+              {apiSubscription?.credential_kind==="academy_gateway"&&<div className="learner-gateway-details">
+                <span>READY-TO-USE ENVIRONMENT</span>
+                <p>Reveal your key, then copy both variables into your project&apos;s <code>.env</code> or <code>.env.local</code> file.</p>
+                <div className="academy-env-block">
+                  <pre><code>{`OPENAI_API_KEY=${revealedApiKey||"bm_live_REVEAL_YOUR_KEY"}\nOPENAI_BASE_URL=${gatewayBaseUrl||"https://bm-academy-dev-api-ydjvvkil.azurewebsites.net/api/v1/gateway/openai/v1"}`}</code></pre>
+                  <button type="button" disabled={!revealedApiKey||!gatewayBaseUrl} onClick={()=>{const value=`OPENAI_API_KEY=${revealedApiKey}\nOPENAI_BASE_URL=${gatewayBaseUrl}`;void navigator.clipboard.writeText(value).then(()=>{setApiEnvCopied(true);window.setTimeout(()=>setApiEnvCopied(false),1800);}).catch(()=>setApiKeyError("Copy failed. Select the environment block and copy it manually."));}}>{apiEnvCopied?"Copied .env":"Copy .env"}</button>
+                </div>
+                <small>Allowed deployments</small>
+                <div>{apiSubscription.allowed_deployments.map(deployment=><b key={deployment}>{deployment}</b>)}</div>
+                <p className="academy-env-note">Keep both values together. Using this key with the public OpenAI or Azure endpoint will fail because it is intentionally valid only at the Academy gateway.</p>
+                <a href="/docs/api" target="_blank" rel="noreferrer">Open setup guide &amp; API documentation <i>↗</i></a>
+              </div>}
               {apiUsage&&<div className="learner-usage-details"><div><span><small>Calls</small><strong>{apiUsage.totals.request_count.toLocaleString()}</strong></span><span><small>Input tokens</small><strong>{apiUsage.totals.input_tokens.toLocaleString()}</strong></span><span><small>Output tokens</small><strong>{apiUsage.totals.output_tokens.toLocaleString()}</strong></span></div><h3>Recent usage</h3>{apiUsage.events.slice(0,8).map(event=><article key={event.request_id}><div><strong>{event.deployment}</strong><small>{event.operation} · {new Date(event.created_at).toLocaleString()}</small></div><span>{event.units_charged.toLocaleString()} {event.quota_unit}</span></article>)}{!apiUsage.events.length&&<p>No Foundry calls recorded yet.</p>}</div>}
             </article>
             <div className="api-key-security-note"><ApiKeyIcon type="shield" /><p><strong>Encrypted and owner-only</strong><span>The full key is encrypted at rest, revealed only on request, and removed from this page when the modal closes.</span></p></div>

@@ -11,11 +11,11 @@ model_reasoning_effort = "medium"
 [model_providers.beyondmarks]
 name = "Beyond Marks AI Academy"
 base_url = "${BASE_URL}"
-env_key = "BEYOND_MARKS_API_KEY"
+env_key = "OPENAI_API_KEY"
 wire_api = "responses"`;
 
 const responseExample = `curl -N "${BASE_URL}/responses" \\
-  -H "Authorization: Bearer $BEYOND_MARKS_API_KEY" \\
+  -H "Authorization: Bearer $OPENAI_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "gpt-5.6-sol",
@@ -26,8 +26,8 @@ const responseExample = `curl -N "${BASE_URL}/responses" \\
 const sdkExample = `import OpenAI from "openai";
 
 const client = new OpenAI({
-  apiKey: process.env.BEYOND_MARKS_API_KEY,
-  baseURL: "${BASE_URL}",
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
 });
 
 const response = await client.responses.create({
@@ -39,7 +39,7 @@ console.log(response.output_text);`;
 
 const videoExample = `const baseURL = "${BASE_URL}";
 const headers = {
-  Authorization: \`Bearer \${process.env.BEYOND_MARKS_API_KEY}\`,
+  Authorization: \`Bearer \${process.env.OPENAI_API_KEY}\`,
   "Content-Type": "application/json",
 };
 
@@ -103,7 +103,7 @@ export default function ApiDocumentationPage(){
       <div className="api-doc-steps">
         <article><i>1</i><div><h3>Install Codex</h3><p>Install Node.js first, then run:</p><CodeBlock title="Terminal" code={"npm install -g @openai/codex\ncodex --version"}/></div></article>
         <article><i>2</i><div><h3>Add the Academy provider</h3><p>Create or edit <code>~/.codex/config.toml</code> and paste this configuration.</p><CodeBlock title="~/.codex/config.toml" code={codexConfig}/></div></article>
-        <article><i>3</i><div><h3>Set your personal key</h3><p>Never paste the key inside <code>config.toml</code> or commit it to Git.</p><CodeBlock title="PowerShell" code={'$env:BEYOND_MARKS_API_KEY="bm_live_YOUR_KEY"\ncodex'}/><CodeBlock title="macOS, Linux, or WSL" code={'export BEYOND_MARKS_API_KEY="bm_live_YOUR_KEY"\ncodex'}/></div></article>
+        <article><i>3</i><div><h3>Add the environment variables</h3><p>Copy the ready-to-use block from Dashboard → Manage API key. Never commit the file to Git.</p><CodeBlock title=".env or .env.local" code={`OPENAI_API_KEY=bm_live_YOUR_ACADEMY_KEY\nOPENAI_BASE_URL=${BASE_URL}`}/><CodeBlock title="PowerShell session" code={`$env:OPENAI_API_KEY="bm_live_YOUR_ACADEMY_KEY"\n$env:OPENAI_BASE_URL="${BASE_URL}"\ncodex`}/></div></article>
       </div>
       <div className="api-doc-note"><strong>Codex access requirement</strong><p>Your administrator should allow <code>gpt-5.6-sol</code> and choose a token or request allowance. A token allowance reserves safely during a streamed turn, then charges the exact input and output tokens reported by Azure.</p></div>
     </section>

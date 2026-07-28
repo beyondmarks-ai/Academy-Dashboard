@@ -145,9 +145,9 @@ async function reviewApiRequest(request: HttpRequest, context: InvocationContext
             (user_id,access_request_id,provider,product_name,key_last_four,encrypted_api_key,
              credential_hash,credential_kind,allowed_deployments,
              quota_limit,quota_unit,expires_at,status)
-          VALUES($1,$2,'Azure AI Foundry',$3,upper(right($4,4)),$5,$6,'academy_gateway',$7::jsonb,$8,$9,$10,'active')
+          VALUES($1,$2,'Beyond Marks AI Academy',$3,upper(right($4,4)),$5,$6,'academy_gateway',$7::jsonb,$8,$9,$10,'active')
           ON CONFLICT(access_request_id) WHERE access_request_id IS NOT NULL
-          DO UPDATE SET provider='Azure AI Foundry',product_name=excluded.product_name,
+          DO UPDATE SET provider='Beyond Marks AI Academy',product_name=excluded.product_name,
             key_last_four=excluded.key_last_four,encrypted_api_key=excluded.encrypted_api_key,
             credential_hash=excluded.credential_hash,credential_kind='academy_gateway',
             allowed_deployments=excluded.allowed_deployments,
@@ -163,7 +163,7 @@ async function reviewApiRequest(request: HttpRequest, context: InvocationContext
 
       const title = input.decision === "approve" ? "API access approved" : "API access request update";
       const message = input.decision === "approve"
-        ? `Your ${input.productName} access request has been approved. Open Accessed API Keys to view the issued access record.${input.notes ? `\n\nAdministrator note: ${input.notes}` : ""}`
+        ? `Your ${input.productName} access request has been approved. Open Manage API key to reveal your Academy-managed key and copy the ready-to-use environment variables.${input.notes ? `\n\nAdministrator note: ${input.notes}` : ""}`
         : `Your API access request was not approved.${input.notes ? `\n\nReason: ${input.notes}` : ""}`;
       const campaign = await client.query<{ id: string }>(`
         INSERT INTO notification_campaigns(title,message,category,priority,created_by)
