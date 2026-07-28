@@ -28,6 +28,8 @@ var keyVaultName = take('${prefix}-kv-${resourceToken}', 24)
 var postgresName = take('${prefix}-pg-${resourceToken}', 63)
 var deploymentContainerName = 'app-package-${resourceToken}'
 var projectContainerName = 'project-files'
+var academyServicesContainerName = 'academy-services'
+var serviceProvisioningQueueName = 'service-provisioning'
 var postgresAdminUser = 'bmacademyadmin'
 
 var storageBlobDataOwnerRoleId = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
@@ -104,6 +106,18 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
       properties: {
         publicAccess: 'None'
       }
+    }
+    resource academyServicesContainer 'containers' = {
+      name: academyServicesContainerName
+      properties: {
+        publicAccess: 'None'
+      }
+    }
+  }
+  resource queueServices 'queueServices' = {
+    name: 'default'
+    resource serviceProvisioningQueue 'queues' = {
+      name: serviceProvisioningQueueName
     }
   }
 }
@@ -327,6 +341,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       AZURE_CLIENT_ID: userAssignedIdentity.properties.clientId
       AZURE_STORAGE_ACCOUNT_URL: storage.properties.primaryEndpoints.blob
       PROJECT_FILES_CONTAINER: projectContainerName
+      ACADEMY_SERVICES_CONTAINER: academyServicesContainerName
+      SERVICE_PROVISIONING_QUEUE: serviceProvisioningQueueName
       DATABASE_URL: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=postgres-connection)'
       FRONTEND_ORIGIN: frontendOrigin
       NODE_ENV: 'production'

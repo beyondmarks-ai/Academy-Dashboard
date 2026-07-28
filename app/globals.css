@@ -1864,6 +1864,7 @@
 .azure-entitlement-grid header small { margin-top:3px;color:#728897;font-size:8px; }
 .service-status { display:inline-flex;padding:4px 7px;border-radius:99px;color:#79c7a2;background:rgba(71,170,124,.09);font-size:7px;font-weight:900;text-transform:uppercase; }
 .service-status.pending { color:#edc575;background:rgba(214,170,98,.1); }
+.service-status.provisioning { color:#8fc8ef;background:rgba(72,151,204,.12); }
 .service-status.rejected,.service-status.revoked,.service-status.failed,.service-status.blocked { color:#ec9187;background:rgba(185,66,54,.1); }
 .service-status.suspended,.service-status.expired,.service-status.cancelled { color:#91a4af;background:rgba(134,155,167,.09); }
 .service-quota-numbers { margin-top:14px;display:flex;align-items:baseline;gap:6px; }

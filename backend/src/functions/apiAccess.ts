@@ -47,10 +47,45 @@ async function listAccessRequests(request: HttpRequest, context: InvocationConte
         created_at, rotated_at
       FROM api_subscriptions WHERE user_id = $1 ORDER BY created_at DESC
     `, [profile!.id]);
-    return json(200, { data: { requests: result.rows, subscriptions: subscriptions.rows, gatewayBaseUrl:`${new URL(request.url).origin}/api/v1/gateway/openai/v1` }, requestId });
+    const credential = await query(`
+      SELECT id,key_last_four,status,(encrypted_api_key IS NOT NULL) credential_available,
+        revealed_at,reveal_count,rotated_at,created_at
+      FROM academy_credentials WHERE user_id=$1
+    `,[profile!.id]);
+    const origin=new URL(request.url).origin;
+    return json(200, { data: {
+      requests: result.rows,
+      subscriptions: subscriptions.rows,
+      credential:credential.rows[0]||null,
+      gatewayBaseUrl:`${origin}/api/v1/gateway/openai/v1`,
+      serviceGatewayBaseUrl:`${origin}/api/v1/gateway/azure/v1`,
+    }, requestId });
   } catch (error) {
     context.error("List API access failed", error);
     return errorResponse(error, requestId);
+  }
+}
+
+async function revealAcademyCredential(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
+  const requestId=context.invocationId;
+  try{
+    const profile=await ensureProfile(await requireAuth(request));
+    const result=await query<{id:string;encrypted_api_key:string;status:string}>(`
+      SELECT id,encrypted_api_key,status FROM academy_credentials WHERE user_id=$1
+    `,[profile!.id]);
+    const credential=result.rows[0];
+    if(!credential)throw new HttpError(404,"Your Academy key has not been provisioned yet.");
+    if(credential.status!=="active")throw new HttpError(409,"Your Academy key is not active.");
+    const apiKey=decryptApiCredential(credential.encrypted_api_key);
+    await query(`UPDATE academy_credentials SET revealed_at=now(),reveal_count=reveal_count+1,updated_at=now() WHERE id=$1`,[credential.id]);
+    await query(`
+      INSERT INTO audit_events(actor_id,action,entity_type,entity_id,request_id)
+      VALUES($1,'academy-credential.revealed','academy_credential',$2,$3)
+    `,[profile!.id,credential.id,requestId]);
+    return json(200,{data:{apiKey},requestId});
+  }catch(error){
+    context.error("Reveal Academy credential failed",error);
+    return errorResponse(error,requestId);
   }
 }
 
@@ -122,4 +157,5 @@ async function requestAccess(request: HttpRequest, context: InvocationContext): 
 app.http("listApiAccess", { route: "v1/api-access", methods: ["GET"], authLevel: "anonymous", handler: listAccessRequests });
 app.http("requestApiAccess", { route: "v1/api-access/requests", methods: ["POST"], authLevel: "anonymous", handler: requestAccess });
 app.http("revealApiCredential", { route: "v1/api-access/subscriptions/{id:guid}/credential", methods: ["POST"], authLevel: "anonymous", handler: revealCredential });
+app.http("revealAcademyCredential",{route:"v1/academy-credential/reveal",methods:["POST"],authLevel:"anonymous",handler:revealAcademyCredential});
 app.http("learnerApiSubscriptionUsage",{route:"v1/api-access/subscriptions/{id:guid}/usage",methods:["GET"],authLevel:"anonymous",handler:learnerUsage});

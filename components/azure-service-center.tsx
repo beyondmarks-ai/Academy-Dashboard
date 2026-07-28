@@ -34,6 +34,7 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
   useEffect(()=>{void refresh();},[authenticated]);
 
   const active=overview.entitlements.filter(item=>item.status==="active");
+  const provisioning=overview.entitlements.filter(item=>item.status==="provisioning");
   const pendingRequests=overview.requests.filter(item=>item.status==="pending");
   const overallUsage=useMemo(()=>{
     if(!active.length)return 0;
@@ -60,7 +61,12 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
         requestedQuota:plan.quota,
         requestedUnit:selected.unit,
         useCase:String(data.get("useCase")||"").trim(),
-        configuration:{regionPreference:String(data.get("regionPreference")||"academy-default"),runtime:String(data.get("runtime")||"managed")},
+        configuration:{
+          regionPreference:String(data.get("regionPreference")||"academy-default"),
+          runtime:String(data.get("runtime")||"managed"),
+          githubRepository:String(data.get("githubRepository")||"").trim(),
+          containerImage:String(data.get("containerImage")||"").trim(),
+        },
       });
       form.reset();
       setSuccess(`${selected.name} request submitted for administrator review.`);
@@ -73,7 +79,7 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
     <section className="azure-services-box" aria-labelledby="azure-services-title">
       <header>
         <div className="azure-services-title"><ServiceGlyph label="Azure"/><div><p>Cloud resources</p><h2 id="azure-services-title">Azure services</h2></div></div>
-        <span className="azure-live-indicator"><i/>{active.length} active</span>
+        <span className="azure-live-indicator"><i/>{provisioning.length?`${provisioning.length} provisioning`:`${active.length} active`}</span>
       </header>
       <div className="azure-service-metrics">
         <article><small>Available</small><strong>{AZURE_SERVICE_CATALOG.length}</strong><span>managed services</span></article>
@@ -94,9 +100,9 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
 
         {view==="catalog"?<div className="azure-catalog-layout">
           <aside className="azure-catalog-list">{AZURE_SERVICE_CATALOG.map(item=>{
-            const entitlement=overview.entitlements.find(value=>value.service_type===item.type&&value.status==="active");
+            const entitlement=overview.entitlements.find(value=>value.service_type===item.type&&!["revoked","expired"].includes(value.status));
             const request=overview.requests.find(value=>value.service_type===item.type&&value.status==="pending");
-            return <button key={item.type} className={selectedType===item.type?"active":""} onClick={()=>chooseService(item.type)}><ServiceGlyph label={item.shortName}/><span><strong>{item.name}</strong><small>{entitlement?"Active allowance":request?"Awaiting review":item.description}</small></span>{(entitlement||request)&&<em>{entitlement?"LIVE":"PENDING"}</em>}</button>;
+            return <button key={item.type} className={selectedType===item.type?"active":""} onClick={()=>chooseService(item.type)}><ServiceGlyph label={item.shortName}/><span><strong>{item.name}</strong><small>{entitlement?`${entitlement.status} allowance`:request?"Awaiting review":item.description}</small></span>{(entitlement||request)&&<em>{entitlement?entitlement.status.toUpperCase():"PENDING"}</em>}</button>;
           })}</aside>
           <div className="azure-service-detail">
             <div className="azure-detail-heading"><ServiceGlyph label={selected.shortName}/><div><span>MANAGED AZURE SERVICE</span><h3>{selected.name}</h3><p>{selected.description}</p></div></div>
@@ -105,9 +111,10 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
               <label><span>Project name</span><input name="projectName" minLength={2} maxLength={120} placeholder="Project using this service" required/></label>
               <fieldset><legend>Choose an allowance</legend><div className="azure-plan-grid">{selected.plans.map(item=><button type="button" key={item.code} className={selectedPlan===item.code?"active":""} onClick={()=>setSelectedPlan(item.code)}><small>{item.name}</small><strong>{item.label}</strong><span>{item.code==="explore"?"Prototype":item.code==="build"?"Regular projects":"Advanced workloads"}</span></button>)}</div></fieldset>
               <div className="azure-form-grid"><label><span>Region preference</span><select name="regionPreference"><option value="academy-default">Academy managed</option><option value="india">India</option><option value="global">Any available region</option></select></label><label><span>Runtime policy</span><select name="runtime"><option value="managed">Managed & isolated</option><option value="project">Project dedicated</option></select></label></div>
+              {["container_compute","functions","machine_learning"].includes(selected.type)&&<div className="azure-form-grid"><label><span>GitHub repository</span><input name="githubRepository" type="url" placeholder="https://github.com/organisation/project"/></label><label><span>Container image <small>Optional alternative</small></span><input name="containerImage" placeholder="registry.example.com/project:tag"/></label></div>}
               <label><span>Project use case</span><textarea name="useCase" minLength={10} maxLength={3000} placeholder="Explain what you will build, the expected workload, and why this service is needed." required/></label>
               {success&&<p className="azure-request-success">{success}</p>}
-              <div className="azure-request-footer"><div><small>REQUESTED ALLOWANCE</small><strong>{plan.label}</strong></div><button disabled={pending||overview.requests.some(item=>item.service_type===selected.type&&item.status==="pending")||overview.entitlements.some(item=>item.service_type===selected.type&&item.status==="active")}>{pending?"Submitting…":overview.entitlements.some(item=>item.service_type===selected.type&&item.status==="active")?"Already active":overview.requests.some(item=>item.service_type===selected.type&&item.status==="pending")?"Review pending":"Submit access request"}</button></div>
+              <div className="azure-request-footer"><div><small>REQUESTED ALLOWANCE</small><strong>{plan.label}</strong></div><button disabled={pending||overview.requests.some(item=>item.service_type===selected.type&&item.status==="pending")||overview.entitlements.some(item=>item.service_type===selected.type&&!["revoked","expired"].includes(item.status))}>{pending?"Submitting…":overview.entitlements.some(item=>item.service_type===selected.type&&item.status==="provisioning")?"Provisioning…":overview.entitlements.some(item=>item.service_type===selected.type&&item.status==="active")?"Already active":overview.entitlements.some(item=>item.service_type===selected.type&&item.status==="failed")?"Admin action required":overview.requests.some(item=>item.service_type===selected.type&&item.status==="pending")?"Review pending":"Submit access request"}</button></div>
             </form>
           </div>
         </div>:<div className="azure-ledger">

@@ -46,6 +46,10 @@ export type AcademySubscription = {
   created_at: string;
   rotated_at: string | null;
 };
+export type AcademyCredential = {
+  id:string;key_last_four:string;status:"active"|"revoked";credential_available:boolean;
+  revealed_at:string|null;reveal_count:number;rotated_at:string|null;created_at:string;
+};
 
 export type AcademyApiAccessRequest = {
   id:string;
@@ -71,7 +75,7 @@ export type ServiceAccessRequest = {
 };
 export type ServiceEntitlement = {
   id:string;request_id:string;service_type:AzureServiceType;display_name:string;quota_limit:number;quota_unit:AzureQuotaUnit;
-  usage_count:number;status:"active"|"suspended"|"revoked"|"expired";resource_config:Record<string,unknown>;expires_at:string|null;created_at:string;updated_at:string;
+  usage_count:number;status:"provisioning"|"active"|"failed"|"suspended"|"revoked"|"expired";resource_config:Record<string,unknown>;expires_at:string|null;created_at:string;updated_at:string;
 };
 export type ServiceUsageEvent = {id:string;entitlement_id:string;service_type:AzureServiceType;operation:string;quantity:number;quota_unit:AzureQuotaUnit;status:"succeeded"|"failed"|"blocked";resource_id:string|null;metadata:Record<string,unknown>;occurred_at:string};
 export type ServiceQuotaAllocation = {id:string;entitlement_id:string;service_type:AzureServiceType;action:"initial"|"top_up"|"reset"|"renew";amount:number;quota_unit:AzureQuotaUnit;previous_limit:number|null;previous_usage:number;expires_at:string|null;notes:string;created_at:string};
@@ -203,7 +207,11 @@ export async function createProject(input: {
 }
 
 export async function getApiAccess() {
-  return (await apiRequest<ApiEnvelope<{ requests: AcademyApiAccessRequest[]; subscriptions: AcademySubscription[]; gatewayBaseUrl:string }>>("/api/v1/api-access")).data;
+  return (await apiRequest<ApiEnvelope<{ requests: AcademyApiAccessRequest[]; subscriptions: AcademySubscription[]; credential:AcademyCredential|null; gatewayBaseUrl:string;serviceGatewayBaseUrl:string }>>("/api/v1/api-access")).data;
+}
+
+export async function revealAcademyCredential(){
+  return(await apiRequest<ApiEnvelope<{apiKey:string}>>("/api/v1/academy-credential/reveal",{method:"POST"})).data.apiKey;
 }
 
 export async function requestApiAccess(input:{capabilities:string[];deployments:string[];projectName:string;intendedUse:string;estimatedUsage:"starter"|"standard"|"advanced"|"custom";otherRequirements:string}) {
@@ -276,6 +284,7 @@ export async function adminGetApiUsage(id:string){return(await apiRequest<ApiEnv
 export async function adminGetServiceRequests(){return(await apiRequest<ApiEnvelope<AdminServiceRequest[]>>("/api/v1/admin/service-access/requests")).data;}
 export async function adminReviewServiceRequest(id:string,input:{decision:"approve";displayName:string;quotaLimit:number;quotaUnit:AzureQuotaUnit;expiresAt:string;resourceConfig:Record<string,unknown>;notes:string}|{decision:"reject";notes:string}){return(await apiRequest<ApiEnvelope<AdminServiceRequest>>(`/api/v1/admin/service-access/requests/${id}/review`,{method:"POST",body:JSON.stringify(input)})).data;}
 export async function adminManageServiceEntitlement(id:string,input:{action:"topUp";amount:number;notes:string}|{action:"reset";notes:string}|{action:"renew";quotaLimit:number;expiresAt:string;notes:string}|{action:"suspend"|"activate"|"revoke";notes:string}){return(await apiRequest<ApiEnvelope<ServiceEntitlement>>(`/api/v1/admin/service-access/entitlements/${id}`,{method:"POST",body:JSON.stringify(input)})).data;}
+export async function adminRetryServiceProvisioning(id:string){return(await apiRequest<ApiEnvelope<{jobId:string;status:string}>>(`/api/v1/admin/service-access/entitlements/${id}/provision`,{method:"POST",body:"{}"})).data;}
 export async function getMyCourses(){return(await apiRequest<ApiEnvelope<AdminEnrollment[]>>("/api/v1/courses")).data;}
 export async function getMyCertificates(){return(await apiRequest<ApiEnvelope<AcademyCertificate[]>>("/api/v1/certificates")).data;}
 export async function verifyCertificate(number:string){return(await apiRequest<ApiEnvelope<AcademyCertificate>>(`/api/v1/certificates/verify/${encodeURIComponent(number)}`)).data;}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 const BASE_URL = "https://bm-academy-dev-api-ydjvvkil.azurewebsites.net/api/v1/gateway/openai/v1";
+const AZURE_BASE_URL = "https://bm-academy-dev-api-ydjvvkil.azurewebsites.net/api/v1/gateway/azure/v1";
 
 const codexConfig = `model = "gpt-5.6-sol"
 model_provider = "beyondmarks"
@@ -73,6 +74,16 @@ const models = [
   ["gpt-4o-mini-tts", "Text to speech", "Speech", "requests"],
 ];
 
+const storageExample=`curl -X PUT "${AZURE_BASE_URL}/blob_storage/upload?name=reports/result.json" \\
+  -H "Authorization: Bearer $ACADEMY_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  --data-binary @result.json`;
+const databaseExample=`curl -X PUT "${AZURE_BASE_URL}/database/records" \\
+  -H "Authorization: Bearer $ACADEMY_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: project-42-student-1" \\
+  -d '{"collection":"students","key":"student-1","value":{"progress":82}}'`;
+
 function CodeBlock({title,code}:{title:string;code:string}){
   const [copied,setCopied]=useState(false);
   return <div className="api-doc-code"><header><span>{title}</span><button type="button" onClick={()=>void navigator.clipboard.writeText(code).then(()=>{setCopied(true);window.setTimeout(()=>setCopied(false),1600);})}>{copied?"Copied":"Copy"}</button></header><pre><code>{code}</code></pre></div>;
@@ -83,7 +94,7 @@ export default function ApiDocumentationPage(){
     <div className="api-doc-glow"/>
     <header className="api-doc-header">
       <a className="api-doc-brand" href="/"><span>BM</span><div><strong>Beyond Marks</strong><small>AI Academy Developer Platform</small></div></a>
-      <nav><a href="#codex">Codex</a><a href="#models">Models</a><a href="#examples">Examples</a><a href="/">Dashboard</a></nav>
+      <nav><a href="#codex">Codex</a><a href="#models">Models</a><a href="#services">Azure services</a><a href="#examples">Examples</a><a href="/">Dashboard</a></nav>
     </header>
 
     <section className="api-doc-hero">
@@ -114,8 +125,17 @@ export default function ApiDocumentationPage(){
       <p className="api-doc-fineprint"><strong>Important:</strong> request-metered keys work across every assigned family. Specialized token, image, or video-second keys only work with compatible operations so unlike costs are never mixed.</p>
     </section>
 
+    <section id="services" className="api-doc-section">
+      <div className="api-doc-section-title"><span>03</span><div><small>MANAGED AZURE SERVICES</small><h2>One key for approved cloud services</h2><p>Use the same Academy key with the service gateway. Azure connection strings, account keys, and resource credentials are never issued to students.</p></div></div>
+      <div className="api-doc-example-grid">
+        <article><h3>Upload an object</h3><p>Blob usage is charged by the exact object bytes passing through the Academy gateway.</p><CodeBlock title="cURL" code={storageExample}/></article>
+        <article><h3>Write a database record</h3><p>Records are isolated by entitlement. Supply an idempotency key when retrying writes.</p><CodeBlock title="cURL" code={databaseExample}/></article>
+      </div>
+      <div className="api-doc-note"><strong>Environment</strong><p><code>ACADEMY_API_KEY=bm_live_…</code><br/><code>ACADEMY_AZURE_BASE_URL={AZURE_BASE_URL}</code></p></div>
+    </section>
+
     <section id="examples" className="api-doc-section">
-      <div className="api-doc-section-title"><span>03</span><div><small>QUICKSTARTS</small><h2>Call the gateway</h2><p>Authenticate with <code>Authorization: Bearer YOUR_KEY</code>. The Azure Foundry key always remains on the backend.</p></div></div>
+      <div className="api-doc-section-title"><span>04</span><div><small>QUICKSTARTS</small><h2>Call the gateway</h2><p>Authenticate with <code>Authorization: Bearer YOUR_KEY</code>. The Azure Foundry key always remains on the backend.</p></div></div>
       <div className="api-doc-example-grid">
         <article><h3>Stream a response</h3><p>Use SSE for interactive assistants and coding agents.</p><CodeBlock title="cURL" code={responseExample}/></article>
         <article><h3>OpenAI JavaScript SDK</h3><p>Point the standard SDK at the Academy base URL.</p><CodeBlock title="Node.js" code={sdkExample}/></article>
@@ -124,7 +144,7 @@ export default function ApiDocumentationPage(){
     </section>
 
     <section className="api-doc-section api-doc-endpoints">
-      <div className="api-doc-section-title"><span>04</span><div><small>REFERENCE</small><h2>Endpoint map</h2></div></div>
+      <div className="api-doc-section-title"><span>05</span><div><small>REFERENCE</small><h2>Endpoint map</h2></div></div>
       <div>
         <code>POST /responses</code><span>Responses and Codex streaming</span>
         <code>POST /chat/completions</code><span>Chat and audio chat completions</span>

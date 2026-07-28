@@ -9,6 +9,8 @@ const configSchema = z.object({
   PROJECT_FILES_CONTAINER: z.string().default("project-files"),
   CERTIFICATE_FILES_CONTAINER: z.string().default("certificate-files"),
   CERTIFICATE_QUEUE: z.string().default("certificate-generation"),
+  ACADEMY_SERVICES_CONTAINER: z.string().default("academy-services"),
+  SERVICE_PROVISIONING_QUEUE: z.string().default("service-provisioning"),
   AZURE_FOUNDRY_ENDPOINT: z.string().url().optional(),
   AZURE_FOUNDRY_IMAGE_DEPLOYMENT: z.string().default("gpt-image-1"),
   AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: z.string().url().optional(),

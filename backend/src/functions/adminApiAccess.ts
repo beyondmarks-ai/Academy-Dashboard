@@ -1,11 +1,9 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
-import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../auth.js";
+import { ensureAcademyCredential, upsertCredentialScope } from "../academyCredentials.js";
 import { query, transaction } from "../db.js";
 import { errorResponse, HttpError, json, parseJson } from "../http.js";
-import { encryptApiCredential } from "../credentialCrypto.js";
-import { hashOpaqueToken } from "../security.js";
 
 const reviewSchema = z.discriminatedUnion("decision", [
   z.object({
@@ -64,13 +62,14 @@ async function manageSubscription(request: HttpRequest, context: InvocationConte
     const administrator=await requireAdmin(request);
     const input=await parseJson(request,lifecycleSchema);
     const data=await transaction(async client=>{
-      const found=await client.query<{id:string;quota_limit:number|null;quota_unit:string;usage_count:number;status:string}>(`
-        SELECT id,quota_limit,quota_unit,usage_count,status FROM api_subscriptions WHERE id=$1 FOR UPDATE
+      const found=await client.query<{id:string;credential_id:string|null;quota_limit:number|null;quota_unit:string;usage_count:number;status:string}>(`
+        SELECT id,credential_id,quota_limit,quota_unit,usage_count,status FROM api_subscriptions WHERE id=$1 FOR UPDATE
       `,[request.params.id]);
       const subscription=found.rows[0];
       if(!subscription)throw new HttpError(404,"API subscription not found.");
       if(input.action==="revoke"){
         const updated=await client.query(`UPDATE api_subscriptions SET status='revoked' WHERE id=$1 RETURNING *`,[subscription.id]);
+        if(subscription.credential_id)await client.query(`UPDATE academy_credential_scopes SET status='revoked',updated_at=now() WHERE source_id=$1 AND scope_type='model'`,[subscription.id]);
         await client.query(`DELETE FROM api_gateway_reservations WHERE subscription_id=$1`,[subscription.id]);
         return updated.rows[0];
       }
@@ -83,11 +82,13 @@ async function manageSubscription(request: HttpRequest, context: InvocationConte
       if(input.action==="reset"){
         if(!subscription.quota_limit)throw new HttpError(409,"Set a quota before resetting usage.");
         const updated=await client.query(`UPDATE api_subscriptions SET usage_count=0,status='active' WHERE id=$1 RETURNING *`,[subscription.id]);
+        if(subscription.credential_id)await client.query(`UPDATE academy_credential_scopes SET status='active',updated_at=now() WHERE source_id=$1 AND scope_type='model'`,[subscription.id]);
         await client.query(`DELETE FROM api_gateway_reservations WHERE subscription_id=$1`,[subscription.id]);
         await client.query(`INSERT INTO api_quota_allocations(subscription_id,actor_id,action,amount,quota_unit,previous_limit,previous_usage,expires_at,notes) VALUES($1,$2,'reset',$3,$4,$5,$6,$7,$8)`,[subscription.id,administrator.profileId,subscription.quota_limit,subscription.quota_unit,subscription.quota_limit,subscription.usage_count,updated.rows[0].expires_at,input.notes]);
         return updated.rows[0];
       }
       const updated=await client.query(`UPDATE api_subscriptions SET quota_limit=$1,quota_unit=$2,usage_count=0,expires_at=$3,status='active' WHERE id=$4 RETURNING *`,[input.quotaLimit,input.quotaUnit,input.expiresAt,subscription.id]);
+      if(subscription.credential_id)await client.query(`UPDATE academy_credential_scopes SET status='active',expires_at=$1,updated_at=now() WHERE source_id=$2 AND scope_type='model'`,[input.expiresAt,subscription.id]);
       await client.query(`DELETE FROM api_gateway_reservations WHERE subscription_id=$1`,[subscription.id]);
       await client.query(`INSERT INTO api_quota_allocations(subscription_id,actor_id,action,amount,quota_unit,previous_limit,previous_usage,expires_at,notes) VALUES($1,$2,'renew',$3,$4,$5,$6,$7,$8)`,[subscription.id,administrator.profileId,input.quotaLimit,input.quotaUnit,subscription.quota_limit,subscription.usage_count,input.expiresAt,input.notes]);
       return updated.rows[0];
@@ -136,25 +137,30 @@ async function reviewApiRequest(request: HttpRequest, context: InvocationContext
       `, [status, input.notes, admin.profileId, accessRequest.id]);
 
       if (input.decision === "approve") {
-        const academyKey = `bm_live_${randomBytes(28).toString("base64url")}`;
+        const credential=await ensureAcademyCredential(client,accessRequest.user_id);
         const previous = await client.query<{ id:string; quota_limit:number|null; usage_count:number }>(`
           SELECT id,quota_limit,usage_count FROM api_subscriptions WHERE access_request_id=$1
         `,[accessRequest.id]);
         const issued = await client.query<{id:string}>(`
           INSERT INTO api_subscriptions
-            (user_id,access_request_id,provider,product_name,key_last_four,encrypted_api_key,
+            (user_id,access_request_id,credential_id,provider,product_name,key_last_four,encrypted_api_key,
              credential_hash,credential_kind,allowed_deployments,
              quota_limit,quota_unit,expires_at,status)
-          VALUES($1,$2,'Beyond Marks AI Academy',$3,upper(right($4,4)),$5,$6,'academy_gateway',$7::jsonb,$8,$9,$10,'active')
+          VALUES($1,$2,$3,'Beyond Marks AI Academy',$4,$5,$6,$7,'academy_gateway',$8::jsonb,$9,$10,$11,'active')
           ON CONFLICT(access_request_id) WHERE access_request_id IS NOT NULL
           DO UPDATE SET provider='Beyond Marks AI Academy',product_name=excluded.product_name,
+            credential_id=excluded.credential_id,
             key_last_four=excluded.key_last_four,encrypted_api_key=excluded.encrypted_api_key,
             credential_hash=excluded.credential_hash,credential_kind='academy_gateway',
             allowed_deployments=excluded.allowed_deployments,
             quota_limit=excluded.quota_limit,quota_unit=excluded.quota_unit,
             usage_count=0,expires_at=excluded.expires_at,status='active',rotated_at=now()
           RETURNING id
-        `, [accessRequest.user_id, accessRequest.id, input.productName, academyKey, encryptApiCredential(academyKey), hashOpaqueToken(academyKey), JSON.stringify(input.allowedDeployments), input.quotaLimit, input.quotaUnit, input.expiresAt]);
+        `, [accessRequest.user_id, accessRequest.id, credential.id, input.productName, credential.key_last_four, credential.encrypted_api_key, credential.credential_hash, JSON.stringify(input.allowedDeployments), input.quotaLimit, input.quotaUnit, input.expiresAt]);
+        await client.query(`UPDATE academy_credential_scopes SET status='revoked',updated_at=now() WHERE source_id=$1 AND scope_type='model'`,[issued.rows[0]!.id]);
+        for(const deployment of input.allowedDeployments){
+          await upsertCredentialScope(client,{credentialId:credential.id,scopeType:"model",scopeKey:deployment,sourceId:issued.rows[0]!.id,status:"active",expiresAt:input.expiresAt});
+        }
         await client.query(`
           INSERT INTO api_quota_allocations(subscription_id,actor_id,action,amount,quota_unit,previous_limit,previous_usage,expires_at,notes)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)

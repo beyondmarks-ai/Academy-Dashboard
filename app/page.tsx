@@ -22,10 +22,11 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   requestApiAccess,
-  revealApiCredential,
+  revealAcademyCredential,
   type AcademyNotification,
   type AcademyProject,
   type AcademySubscription,
+  type AcademyCredential,
   type AcademyCertificate,
   type AcademyApiAccessRequest,
   type AdminEnrollment,
@@ -325,9 +326,11 @@ function DashboardDestination({ userName, authenticated, onSignOut }: { userName
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [apiEnvCopied, setApiEnvCopied] = useState(false);
   const [apiSubscription, setApiSubscription] = useState<AcademySubscription | null>(null);
+  const [academyCredential,setAcademyCredential]=useState<AcademyCredential|null>(null);
   const [apiAccessRequests,setApiAccessRequests]=useState<AcademyApiAccessRequest[]>([]);
   const [apiUsage,setApiUsage]=useState<ApiUsageDetails|null>(null);
   const [gatewayBaseUrl,setGatewayBaseUrl]=useState("");
+  const [serviceGatewayBaseUrl,setServiceGatewayBaseUrl]=useState("");
   const [selectedApiModels, setSelectedApiModels] = useState<string[]>([]);
   const [modelFilter,setModelFilter]=useState("All");
   const [apiProjectName,setApiProjectName]=useState("");
@@ -406,8 +409,10 @@ Finished and ready for integration.`,
         setProjects(projectData.map(projectFromApi));
         setNotifications(notificationData.data.map(notificationFromApi));
         setApiSubscription(apiAccess.subscriptions[0] || null);
+        setAcademyCredential(apiAccess.credential);
         setApiAccessRequests(apiAccess.requests);
         setGatewayBaseUrl(apiAccess.gatewayBaseUrl);
+        setServiceGatewayBaseUrl(apiAccess.serviceGatewayBaseUrl);
         setMyCourses(courseData);setMyCertificates(certificateData);
         setSyncError("");
       })
@@ -455,14 +460,14 @@ Finished and ready for integration.`,
       setApiKeyVisible(true);
       return;
     }
-    if (!apiSubscription) {
+    if (!academyCredential) {
       setApiKeyError("No active API credential has been issued yet.");
       return;
     }
     setApiKeyPending(true);
     setApiKeyError("");
     try {
-      setRevealedApiKey(await revealApiCredential(apiSubscription.id));
+      setRevealedApiKey(await revealAcademyCredential());
       setApiKeyVisible(true);
     } catch (error) {
       setApiKeyError(error instanceof Error ? error.message : "The credential could not be revealed.");
@@ -632,15 +637,15 @@ Finished and ready for integration.`,
               <div className="accessed-key-topline">
                 <span className="accessed-key-provider" aria-hidden="true">BM</span>
                 <div>
-                  <strong id="accessed-key-name">{apiSubscription?.product_name || (authenticated ? "No approved Academy key" : "Demo Academy credential")}</strong>
-                  <small><i /> {apiSubscription?.status || (authenticated ? "No access" : "Demo mode")}</small>
+                  <strong id="accessed-key-name">{academyCredential ? "Beyond Marks Academy key" : (authenticated ? "No approved Academy key" : "Demo Academy credential")}</strong>
+                  <small><i /> {academyCredential?.status || (authenticated ? "No access" : "Demo mode")}</small>
                 </div>
               </div>
               <div className="accessed-key-value">
                 <code aria-label={apiKeyVisible ? "Visible API key" : "Hidden API key"}>
                   {apiKeyVisible
                     ? revealedApiKey
-                    : `•••• •••• •••• ${apiSubscription?.key_last_four || (authenticated ? "—" : "4479")}`}
+                    : `•••• •••• •••• ${academyCredential?.key_last_four || (authenticated ? "—" : "4479")}`}
                 </code>
                 <button
                   type="button"
@@ -656,8 +661,8 @@ Finished and ready for integration.`,
               </div>
               {apiKeyError&&<p className="api-key-error" role="alert">{apiKeyError}</p>}
               <div className="accessed-key-meta">
-                <span>{apiSubscription ? `Created ${new Date(apiSubscription.created_at).toLocaleDateString()}` : authenticated ? "Awaiting approval" : "Demo only"}</span>
-                <span>{apiSubscription?.credential_available ? "Encrypted credential ready" : "Awaiting provisioning"}</span>
+                <span>{academyCredential ? `Created ${new Date(academyCredential.created_at).toLocaleDateString()}` : authenticated ? "Awaiting approval" : "Demo only"}</span>
+                <span>{academyCredential?.credential_available ? "Encrypted credential ready" : "Awaiting provisioning"}</span>
               </div>
               {apiSubscription&&<div className="api-quota-panel">
                 <div className="api-quota-heading"><div><small>ASSIGNED USAGE LIMIT</small><strong>{apiSubscription.quota_limit?.toLocaleString()||"Unlimited"} <span>{apiSubscription.quota_unit}</span></strong></div><span className={apiSubscription.expires_at&&new Date(apiSubscription.expires_at)<=new Date()?"expired":"active"}>{apiSubscription.expires_at&&new Date(apiSubscription.expires_at)<=new Date()?"Expired":"Active"}</span></div>
@@ -665,15 +670,17 @@ Finished and ready for integration.`,
                 <div className="api-quota-meta"><span>{apiSubscription.usage_count.toLocaleString()} recorded usage</span><span>{apiSubscription.expires_at?`Expires ${new Date(apiSubscription.expires_at).toLocaleString()}`:"No expiry"}</span></div>
                 <p>This allowance is enforced by the Academy gateway before requests reach Azure Foundry.</p>
               </div>}
-              {apiSubscription?.credential_kind==="academy_gateway"&&<div className="learner-gateway-details">
+              {academyCredential&&<div className="learner-gateway-details">
                 <span>READY-TO-USE ENVIRONMENT</span>
                 <p>Reveal your key, then copy both variables into your project&apos;s <code>.env</code> or <code>.env.local</code> file.</p>
                 <div className="academy-env-block">
                   <pre><code>{`OPENAI_API_KEY=${revealedApiKey||"bm_live_REVEAL_YOUR_KEY"}\nOPENAI_BASE_URL=${gatewayBaseUrl||"https://bm-academy-dev-api-ydjvvkil.azurewebsites.net/api/v1/gateway/openai/v1"}`}</code></pre>
                   <button type="button" disabled={!revealedApiKey||!gatewayBaseUrl} onClick={()=>{const value=`OPENAI_API_KEY=${revealedApiKey}\nOPENAI_BASE_URL=${gatewayBaseUrl}`;void navigator.clipboard.writeText(value).then(()=>{setApiEnvCopied(true);window.setTimeout(()=>setApiEnvCopied(false),1800);}).catch(()=>setApiKeyError("Copy failed. Select the environment block and copy it manually."));}}>{apiEnvCopied?"Copied .env":"Copy .env"}</button>
                 </div>
-                <small>Allowed deployments</small>
-                <div>{apiSubscription.allowed_deployments.map(deployment=><b key={deployment}>{deployment}</b>)}</div>
+                {apiSubscription&&<><small>Allowed deployments</small><div>{apiSubscription.allowed_deployments.map(deployment=><b key={deployment}>{deployment}</b>)}</div></>}
+                {serviceGatewayBaseUrl&&<div className="academy-env-block">
+                  <pre><code>{`ACADEMY_API_KEY=${revealedApiKey||"bm_live_REVEAL_YOUR_KEY"}\nACADEMY_AZURE_BASE_URL=${serviceGatewayBaseUrl}`}</code></pre>
+                </div>}
                 <p className="academy-env-note">Keep both values together. Using this key with the public OpenAI or Azure endpoint will fail because it is intentionally valid only at the Academy gateway.</p>
                 <a href="/docs/api" target="_blank" rel="noreferrer">Open setup guide &amp; API documentation <i>↗</i></a>
               </div>}

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { ensureProfile, requireAuth, requireRole } from "../auth.js";
 import { query, transaction } from "../db.js";
 import { errorResponse, HttpError, json, parseJson } from "../http.js";
+import { ensureAcademyCredential,upsertCredentialScope } from "../academyCredentials.js";
+import { enqueueServiceProvisioning } from "../serviceProvisioningQueue.js";
 
 const serviceType = z.enum([
   "blob_storage", "container_compute", "machine_learning", "database", "functions",
@@ -136,7 +138,8 @@ async function reviewRequest(request: HttpRequest, context: InvocationContext): 
   try {
     const administrator = await requireAdmin(request);
     const input = await parseJson(request, reviewSchema);
-    const data = await transaction(async client => {
+    const jobKey=`provision:${request.params.id}:${Date.now()}`;
+    const result = await transaction(async client => {
       const found = await client.query<{ id: string; user_id: string; service_type: string; status: string; project_name: string }>(`SELECT id,user_id,service_type,status,project_name FROM service_access_requests WHERE id=$1 FOR UPDATE`, [request.params.id]);
       const access = found.rows[0];
       if (!access) throw new HttpError(404, "Azure service request not found.");
@@ -146,16 +149,33 @@ async function reviewRequest(request: HttpRequest, context: InvocationContext): 
         throw new HttpError(422, "The allowance unit must match the selected Azure service.");
       }
       const updated = await client.query(`UPDATE service_access_requests SET status=$1,review_notes=$2,reviewed_by=$3,reviewed_at=now(),updated_at=now() WHERE id=$4 RETURNING *`, [input.decision === "approve" ? "approved" : "rejected", input.notes, administrator.profileId, access.id]);
+      let jobId:string|null=null;
       if (input.decision === "approve") {
+        if(["container_compute","functions","machine_learning"].includes(access.service_type)){
+          const requested=(input.resourceConfig.requestedConfiguration&&typeof input.resourceConfig.requestedConfiguration==="object"
+            ?input.resourceConfig.requestedConfiguration:{}) as Record<string,unknown>;
+          const githubRepository=typeof requested.githubRepository==="string"?requested.githubRepository.trim():"";
+          const containerImage=typeof requested.containerImage==="string"?requested.containerImage.trim():"";
+          if(!githubRepository&&!containerImage)throw new HttpError(422,"Approve compute, Functions, and ML only with a reviewed GitHub repository or container image.");
+          if(githubRepository&&!/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?$/i.test(githubRepository))throw new HttpError(422,"The approved repository must be a complete github.com repository URL.");
+          if(containerImage&&!/^[a-z0-9.-]+(?::[0-9]+)?\/[a-z0-9._/-]+(?::[A-Za-z0-9._-]+|@sha256:[a-f0-9]{64})?$/i.test(containerImage))throw new HttpError(422,"The approved container image reference is invalid.");
+        }
+        const credential=await ensureAcademyCredential(client,access.user_id);
         const previous = await client.query<{ id: string; quota_limit: number; usage_count: number }>(`SELECT id,quota_limit,usage_count FROM service_entitlements WHERE request_id=$1`, [access.id]);
         const entitlement = await client.query<{ id: string }>(`
-          INSERT INTO service_entitlements(request_id,user_id,service_type,display_name,quota_limit,quota_unit,resource_config,expires_at,status)
-          VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'active')
+          INSERT INTO service_entitlements(request_id,user_id,service_type,display_name,quota_limit,quota_unit,resource_config,expires_at,status,credential_id)
+          VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8,'provisioning',$9)
           ON CONFLICT(request_id) DO UPDATE SET display_name=excluded.display_name,quota_limit=excluded.quota_limit,
             quota_unit=excluded.quota_unit,usage_count=0,resource_config=excluded.resource_config,
-            expires_at=excluded.expires_at,status='active',updated_at=now()
+            expires_at=excluded.expires_at,status='provisioning',credential_id=excluded.credential_id,updated_at=now()
           RETURNING id
-        `, [access.id, access.user_id, access.service_type, input.displayName, input.quotaLimit, input.quotaUnit, JSON.stringify(input.resourceConfig), input.expiresAt]);
+        `, [access.id, access.user_id, access.service_type, input.displayName, input.quotaLimit, input.quotaUnit, JSON.stringify(input.resourceConfig), input.expiresAt,credential.id]);
+        await upsertCredentialScope(client,{credentialId:credential.id,scopeType:"service",scopeKey:access.service_type,sourceId:entitlement.rows[0]!.id,status:"provisioning",expiresAt:input.expiresAt});
+        const job=await client.query<{id:string}>(`
+          INSERT INTO service_provisioning_jobs(entitlement_id,operation,status,idempotency_key)
+          VALUES($1,'provision','queued',$2) RETURNING id
+        `,[entitlement.rows[0]!.id,jobKey]);
+        jobId=job.rows[0]!.id;
         await client.query(`INSERT INTO service_quota_allocations(entitlement_id,actor_id,action,amount,quota_unit,previous_limit,previous_usage,expires_at,notes) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [entitlement.rows[0]!.id, administrator.profileId, previous.rowCount ? "renew" : "initial", input.quotaLimit, input.quotaUnit, previous.rows[0]?.quota_limit || null, previous.rows[0]?.usage_count || 0, input.expiresAt, input.notes]);
       }
       await notify(client, {
@@ -163,13 +183,20 @@ async function reviewRequest(request: HttpRequest, context: InvocationContext): 
         actorId: administrator.profileId,
         title: input.decision === "approve" ? "Azure service access approved" : "Azure service request update",
         message: input.decision === "approve"
-          ? `${input.displayName} has been approved for ${access.project_name}. Open Azure Services to view the allowance and status.${input.notes ? `\n\nAdministrator note: ${input.notes}` : ""}`
+          ? `${input.displayName} has been approved for ${access.project_name} and is now being provisioned. Your existing Academy key will work as soon as the status becomes active.${input.notes ? `\n\nAdministrator note: ${input.notes}` : ""}`
           : `Your ${access.service_type.replaceAll("_", " ")} request was not approved.${input.notes ? `\n\nReason: ${input.notes}` : ""}`,
       });
-      return updated.rows[0];
+      return {data:updated.rows[0],jobId};
     });
+    if(result.jobId){
+      try{await enqueueServiceProvisioning(result.jobId);}
+      catch(error){
+        await query(`UPDATE service_provisioning_jobs SET status='failed',error_code='QUEUE_UNAVAILABLE',error_message=$1,updated_at=now() WHERE id=$2`,[error instanceof Error?error.message:"Queue unavailable",result.jobId]);
+        throw new HttpError(503,"Access was approved, but provisioning could not be queued. Use Retry provisioning.");
+      }
+    }
     await query(`INSERT INTO audit_events(actor_id,action,entity_type,entity_id,request_id,metadata) VALUES($1,$2,'service_access_request',$3,$4,$5::jsonb)`, [administrator.profileId, `service-access.${input.decision}`, request.params.id, context.invocationId, JSON.stringify(input)]);
-    return json(200, { data, requestId: context.invocationId });
+    return json(result.jobId?202:200, { data:result.data, provisioningJobId:result.jobId, requestId: context.invocationId });
   } catch (error) {
     return errorResponse(error, context.invocationId);
   }
@@ -186,6 +213,7 @@ async function manageEntitlement(request: HttpRequest, context: InvocationContex
       if (input.action === "suspend" || input.action === "activate" || input.action === "revoke") {
         if (input.action === "activate" && item.expires_at && new Date(item.expires_at) <= new Date()) throw new HttpError(409, "Renew this expired entitlement before activating it.");
         const updated = await client.query(`UPDATE service_entitlements SET status=$1,updated_at=now() WHERE id=$2 RETURNING *`, [input.action === "suspend" ? "suspended" : input.action === "revoke" ? "revoked" : "active", item.id]);
+        await client.query(`UPDATE academy_credential_scopes SET status=$1,updated_at=now() WHERE source_id=$2 AND scope_type='service'`,[updated.rows[0].status,item.id]);
         const lifecycleTitle = input.action === "suspend" ? "Azure service suspended" : input.action === "activate" ? "Azure service activated" : "Azure service revoked";
         await notify(client, { userId: item.user_id, actorId: administrator.profileId, title: lifecycleTitle, message: `${item.display_name} is now ${updated.rows[0].status}.${input.notes ? `\n\nAdministrator note: ${input.notes}` : ""}` });
         return updated.rows[0];
@@ -198,11 +226,13 @@ async function manageEntitlement(request: HttpRequest, context: InvocationContex
       }
       if (input.action === "reset") {
         const updated = await client.query(`UPDATE service_entitlements SET usage_count=0,status='active',updated_at=now() WHERE id=$1 RETURNING *`, [item.id]);
+        await client.query(`UPDATE academy_credential_scopes SET status='active',updated_at=now() WHERE source_id=$1 AND scope_type='service'`,[item.id]);
         await client.query(`INSERT INTO service_quota_allocations(entitlement_id,actor_id,action,amount,quota_unit,previous_limit,previous_usage,expires_at,notes) VALUES($1,$2,'reset',$3,$4,$5,$6,$7,$8)`, [item.id, administrator.profileId, item.quota_limit, item.quota_unit, item.quota_limit, item.usage_count, item.expires_at, input.notes]);
         return updated.rows[0];
       }
       if (input.action !== "renew") throw new HttpError(422, "Unsupported service entitlement action.");
       const updated = await client.query(`UPDATE service_entitlements SET quota_limit=$1,usage_count=0,expires_at=$2,status='active',updated_at=now() WHERE id=$3 RETURNING *`, [input.quotaLimit, input.expiresAt, item.id]);
+      await client.query(`UPDATE academy_credential_scopes SET status='active',expires_at=$1,updated_at=now() WHERE source_id=$2 AND scope_type='service'`,[input.expiresAt,item.id]);
       await client.query(`INSERT INTO service_quota_allocations(entitlement_id,actor_id,action,amount,quota_unit,previous_limit,previous_usage,expires_at,notes) VALUES($1,$2,'renew',$3,$4,$5,$6,$7,$8)`, [item.id, administrator.profileId, input.quotaLimit, item.quota_unit, item.quota_limit, item.usage_count, input.expiresAt, input.notes]);
       return updated.rows[0];
     });
@@ -211,6 +241,26 @@ async function manageEntitlement(request: HttpRequest, context: InvocationContex
   } catch (error) {
     return errorResponse(error, context.invocationId);
   }
+}
+
+async function retryProvisioning(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
+  try{
+    const administrator=await requireAdmin(request);
+    const jobKey=`retry:${request.params.id}:${Date.now()}`;
+    const job=await transaction(async client=>{
+      const entitlement=await client.query<{id:string;credential_id:string|null;status:string}>(`SELECT id,credential_id,status FROM service_entitlements WHERE id=$1 FOR UPDATE`,[request.params.id]);
+      const item=entitlement.rows[0];
+      if(!item)throw new HttpError(404,"Service entitlement not found.");
+      if(!["failed","provisioning"].includes(item.status))throw new HttpError(409,"Only failed or stalled provisioning can be retried.");
+      await client.query(`UPDATE service_entitlements SET status='provisioning',updated_at=now() WHERE id=$1`,[item.id]);
+      await client.query(`UPDATE academy_credential_scopes SET status='provisioning',updated_at=now() WHERE source_id=$1 AND scope_type='service'`,[item.id]);
+      const created=await client.query<{id:string}>(`INSERT INTO service_provisioning_jobs(entitlement_id,operation,status,idempotency_key) VALUES($1,'provision','queued',$2) RETURNING id`,[item.id,jobKey]);
+      await client.query(`INSERT INTO audit_events(actor_id,action,entity_type,entity_id,request_id) VALUES($1,'service-entitlement.provision-retry','service_entitlement',$2,$3)`,[administrator.profileId,item.id,context.invocationId]);
+      return created.rows[0]!;
+    });
+    await enqueueServiceProvisioning(job.id);
+    return json(202,{data:{jobId:job.id,status:"queued"},requestId:context.invocationId});
+  }catch(error){return errorResponse(error,context.invocationId);}
 }
 
 async function recordUsage(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -239,4 +289,5 @@ app.http("learnerRequestServiceAccess", { route: "v1/service-access/requests", m
 app.http("adminListServiceAccessRequests", { route: "v1/admin/service-access/requests", methods: ["GET"], authLevel: "anonymous", handler: listAdminRequests });
 app.http("adminReviewServiceAccessRequest", { route: "v1/admin/service-access/requests/{id:guid}/review", methods: ["POST"], authLevel: "anonymous", handler: reviewRequest });
 app.http("adminManageServiceEntitlement", { route: "v1/admin/service-access/entitlements/{id:guid}", methods: ["POST"], authLevel: "anonymous", handler: manageEntitlement });
+app.http("adminRetryServiceProvisioning",{route:"v1/admin/service-access/entitlements/{id:guid}/provision",methods:["POST"],authLevel:"anonymous",handler:retryProvisioning});
 app.http("recordServiceUsage", { route: "internal/service-usage", methods: ["POST"], authLevel: "function", handler: recordUsage });

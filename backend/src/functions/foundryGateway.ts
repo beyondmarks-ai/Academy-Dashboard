@@ -4,7 +4,7 @@ import { getConfig } from "../config.js";
 import { query, transaction } from "../db.js";
 import { foundryToken } from "../foundryAuth.js";
 import { errorResponse, HttpError } from "../http.js";
-import { hashOpaqueToken } from "../security.js";
+import { resolveAcademyCredential } from "../academyCredentials.js";
 
 app.setup({ enableHttpStream: true });
 
@@ -59,17 +59,48 @@ export function upperTokenBudget(body:Record<string,unknown>,operation:Operation
   return inputUpperBound+output;
 }
 
-async function subscriptionFor(request:HttpRequest){
+async function subscriptionFor(request:HttpRequest,deployment?:string){
+  const credential=await resolveAcademyCredential(academyCredential(request));
+  if(!credential||credential.status!=="active")throw new HttpError(401,"The Academy gateway key is invalid or inactive.","GATEWAY_UNAUTHENTICATED");
   const result=await query<GatewaySubscription>(`
     SELECT subscription.id,subscription.user_id,subscription.quota_limit::float8 quota_limit,
       subscription.quota_unit,subscription.usage_count::float8 usage_count,subscription.status,
       subscription.expires_at,subscription.allowed_deployments,profile.academy_id,
       profile.status user_status
-    FROM api_subscriptions subscription JOIN user_profiles profile ON profile.id=subscription.user_id
-    WHERE subscription.credential_hash=$1 AND subscription.credential_kind='academy_gateway'
-  `,[hashOpaqueToken(academyCredential(request))]);
+    FROM api_subscriptions subscription
+    JOIN user_profiles profile ON profile.id=subscription.user_id
+    JOIN academy_credential_scopes scope ON scope.credential_id=$3
+      AND scope.source_id=subscription.id AND scope.scope_type='model'
+      AND scope.status='active'
+      AND ($2::text IS NULL OR scope.scope_key=$2)
+    WHERE subscription.user_id=$1 AND subscription.credential_kind='academy_gateway'
+      AND ($2::text IS NULL OR subscription.allowed_deployments ? $2)
+    ORDER BY CASE WHEN subscription.status='active' THEN 0 ELSE 1 END,subscription.created_at DESC
+    LIMIT 1
+  `,[credential.user_id,deployment||null,credential.id]);
   const subscription=result.rows[0];
   if(!subscription||subscription.user_status!=="active")throw new HttpError(401,"The Academy gateway key is invalid or inactive.","GATEWAY_UNAUTHENTICATED");
+  return subscription;
+}
+
+async function subscriptionForVideo(request:HttpRequest,id:string,generation=false){
+  const credential=await resolveAcademyCredential(academyCredential(request));
+  if(!credential||credential.status!=="active")throw new HttpError(401,"The Academy gateway key is invalid or inactive.","GATEWAY_UNAUTHENTICATED");
+  const lookup=generation
+    ?`JOIN api_video_generations video ON video.subscription_id=subscription.id AND video.generation_id=$2`
+    :`JOIN api_video_jobs video ON video.subscription_id=subscription.id AND video.job_id=$2`;
+  const result=await query<GatewaySubscription>(`
+    SELECT subscription.id,subscription.user_id,subscription.quota_limit::float8 quota_limit,
+      subscription.quota_unit,subscription.usage_count::float8 usage_count,subscription.status,
+      subscription.expires_at,subscription.allowed_deployments,profile.academy_id,profile.status user_status
+    FROM api_subscriptions subscription
+    JOIN user_profiles profile ON profile.id=subscription.user_id
+    ${lookup}
+    WHERE subscription.user_id=$1
+    LIMIT 1
+  `,[credential.user_id,id]);
+  const subscription=result.rows[0];
+  if(!subscription||subscription.user_status!=="active")throw new HttpError(404,"Video job not found.");
   return subscription;
 }
 
@@ -261,13 +292,13 @@ function createJsonHandler(operation:Extract<Operation,"chat/completions"|"respo
     let subscription:GatewaySubscription|undefined;
     let deployment="unknown";
     try{
-      subscription=await subscriptionFor(request);
       const text=await request.text();
       if(Buffer.byteLength(text,"utf8")>2_000_000)throw new HttpError(413,"Gateway request exceeds 2 MB.");
       let body:Record<string,unknown>;
       try{body=JSON.parse(text) as Record<string,unknown>;}catch{throw new HttpError(400,"A valid JSON request body is required.");}
       deployment=typeof body.model==="string"?body.model.trim():"";
       if(!deployment)throw new HttpError(422,"The Foundry deployment must be supplied in the model field.");
+      subscription=await subscriptionFor(request,deployment);
       body={...body,user:subscription.academy_id};
       reservation=await reserve(subscription,deployment,operation,body);
       const upstream=await fetch(upstreamUrl(operation,deployment),{
@@ -315,12 +346,12 @@ async function audioSpeech(request:HttpRequest,context:InvocationContext):Promis
   const operation:Operation="audio/speech",started=Date.now();
   let subscription:GatewaySubscription|undefined,reservation:Reservation|undefined,deployment="unknown";
   try{
-    subscription=await subscriptionFor(request);
     const text=await request.text();
     if(Buffer.byteLength(text,"utf8")>100_000)throw new HttpError(413,"Speech request exceeds 100 KB.");
     const body=JSON.parse(text) as Record<string,unknown>;
     deployment=typeof body.model==="string"?body.model.trim():"";
     if(!deployment)throw new HttpError(422,"The speech deployment must be supplied in the model field.");
+    subscription=await subscriptionFor(request,deployment);
     reservation=await reserve(subscription,deployment,operation,body);
     const upstream=await fetch(upstreamUrl(operation,deployment),{method:"POST",headers:await authorizedHeaders(context,"application/json"),body:JSON.stringify(body),signal:AbortSignal.timeout(300_000)});
     const raw=await upstream.arrayBuffer();
@@ -337,12 +368,12 @@ async function audioTranscription(request:HttpRequest,context:InvocationContext)
   const operation:Operation="audio/transcriptions",started=Date.now();
   let subscription:GatewaySubscription|undefined,reservation:Reservation|undefined,deployment="unknown";
   try{
-    subscription=await subscriptionFor(request);
     const length=Number(request.headers.get("content-length")||0);
     if(length>26_000_000)throw new HttpError(413,"Audio upload exceeds 26 MB.");
     const form=await request.formData();
     deployment=String(form.get("model")||"").trim();
     if(!deployment)throw new HttpError(422,"The transcription deployment must be supplied in the model field.");
+    subscription=await subscriptionFor(request,deployment);
     reservation=await reserve(subscription,deployment,operation,{model:deployment});
     const upstream=await fetch(upstreamUrl(operation,deployment),{method:"POST",headers:await authorizedHeaders(context),body:form,signal:AbortSignal.timeout(600_000)});
     const raw=await upstream.arrayBuffer();
@@ -359,7 +390,6 @@ async function createVideoJob(request:HttpRequest,context:InvocationContext):Pro
   const operation:Operation="videos",started=Date.now();
   let subscription:GatewaySubscription|undefined,reservation:Reservation|undefined,deployment="unknown";
   try{
-    subscription=await subscriptionFor(request);
     const contentType=request.headers.get("content-type")||"";
     let body:Record<string,unknown>,upstreamBody:FormData;
     if(contentType.toLowerCase().includes("multipart/form-data")){
@@ -379,6 +409,8 @@ async function createVideoJob(request:HttpRequest,context:InvocationContext):Pro
       for(const field of ["model","prompt","seconds","size"] as const)if(body[field]!==undefined)upstreamBody.set(field,String(body[field]));
     }
     deployment=typeof body.model==="string"?body.model.trim():"";
+    if(!deployment)throw new HttpError(422,"The video deployment must be supplied in the model field.");
+    subscription=await subscriptionFor(request,deployment);
     const seconds=number(body.seconds)||4,variants=1;
     if(!deployment)throw new HttpError(422,"The video deployment must be supplied in the model field.");
     if(![4,8,12].includes(seconds))throw new HttpError(422,"Sora 2 video duration must be 4, 8, or 12 seconds.");
@@ -404,9 +436,9 @@ async function createVideoJob(request:HttpRequest,context:InvocationContext):Pro
 
 async function getVideoJob(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   try{
-    const subscription=await subscriptionFor(request);
     const jobId=request.params.id;
     if(!jobId)throw new HttpError(400,"A video job ID is required.");
+    const subscription=await subscriptionForVideo(request,jobId);
     const found=await query<{deployment:string}>(`SELECT deployment FROM api_video_jobs WHERE job_id=$1 AND subscription_id=$2`,[jobId,subscription.id]);
     if(!found.rowCount)throw new HttpError(404,"Video job not found.");
     const upstream=await fetch(`${endpoint()}/openai/v1/videos/${encodeURIComponent(jobId)}`,{headers:await authorizedHeaders(context),signal:AbortSignal.timeout(120_000)});
@@ -420,9 +452,9 @@ async function getVideoJob(request:HttpRequest,context:InvocationContext):Promis
 
 async function downloadVideo(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   try{
-    const subscription=await subscriptionFor(request);
     const generationId=request.params.id;
     if(!generationId)throw new HttpError(400,"A video generation ID is required.");
+    const subscription=await subscriptionForVideo(request,generationId,true);
     const found=await query(`SELECT generation_id FROM api_video_generations WHERE generation_id=$1 AND subscription_id=$2`,[generationId,subscription.id]);
     if(!found.rowCount)throw new HttpError(404,"Video generation not found. Poll the job once after it succeeds before downloading.");
     const upstream=await fetch(`${endpoint()}/openai/v1/videos/${encodeURIComponent(generationId)}/content?variant=video`,{headers:{...(await authorizedHeaders(context)),accept:"application/binary"},signal:AbortSignal.timeout(600_000)});
