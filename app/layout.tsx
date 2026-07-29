@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./pro.css";
 
 export const metadata: Metadata = {
   title: "Beyond Marks | Student Dashboard",

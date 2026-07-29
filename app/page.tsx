@@ -187,6 +187,17 @@ export default function Dashboard() {
   return (
     <main className={`empty-dashboard ${authActive ? "auth-open" : ""}`}>
       <div className="ambient-bg" />
+      <header className="landing-nav">
+        <a className="landing-brand" href="/" aria-label="Beyond Marks home">
+          <Image src="/beyond-marks-logo.jpeg" alt="" width={38} height={38} />
+          <span><strong>Beyond Marks</strong><small>Academy Platform</small></span>
+        </a>
+        <div className="landing-nav-actions">
+          <span className="landing-status"><i /> Platform operational</span>
+          <a href="/docs/api">Developer docs</a>
+          <button type="button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Member sign in</button>
+        </div>
+      </header>
       <div className={`watermark ${openingMode ? "ring-drawing" : ""} ${authMode ? "color-revealed" : ""}`} aria-hidden="true">
         <Image
           src="/beyond-marks-logo.jpeg"
@@ -211,20 +222,27 @@ export default function Dashboard() {
       </div>
 
       <section className="welcome-hero" aria-labelledby="welcome-title">
-        <div className="welcome-ornament" aria-hidden="true"><span /><i /><span /></div>
-        <p>Welcome to</p>
-        <h1 id="welcome-title">Beyond Marks</h1>
-        <div className="welcome-rule" aria-hidden="true"><i /></div>
-        <span className="welcome-tagline">LEARN &nbsp;•&nbsp; GROW &nbsp;•&nbsp; GO BEYOND</span>
+        <span className="welcome-kicker">THE ACADEMY OPERATING SYSTEM</span>
+        <h1 id="welcome-title">Build beyond<br/><em>the expected.</em></h1>
+        <p className="welcome-lede">One secure workspace for learning, governed AI access, cloud services, projects, and achievement.</p>
+        <div className="welcome-capabilities" aria-label="Platform capabilities">
+          <span>AI models</span><span>Cloud workspaces</span><span>Verified credentials</span>
+        </div>
       </section>
 
       <footer className="auth-footer">
-        <button type="button" className="login-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Log in</button>
-        <button type="button" className="signup-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("signup")}>Sign up</button>
+        <button type="button" className="login-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Enter workspace <span>↗</span></button>
+        <button type="button" className="signup-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("signup")}>Create account</button>
         <button type="button" className="admin-signin-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login", true)}>
-          <span aria-hidden="true">◆</span> Admin sign in
+          Administration
         </button>
       </footer>
+
+      <div className="landing-proof" aria-label="Platform foundations">
+        <span><b>01</b><strong>Governed access</strong><small>Identity and approval controls</small></span>
+        <span><b>02</b><strong>Usage metering</strong><small>Transparent live allowances</small></span>
+        <span><b>03</b><strong>Production tooling</strong><small>From learning to deployment</small></span>
+      </div>
 
       {authMode && (
         <div className="auth-modal-layer" role="presentation" onMouseDown={closeAuth}>
