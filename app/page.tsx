@@ -220,13 +220,18 @@ export default function Dashboard() {
           <circle className="ring-stroke" cx="50" cy="50" r="48.5" pathLength="1" />
         </svg>
       </div>
+      <div className="landing-visual-caption" aria-hidden="true">
+        <span>BEYOND MARKS · EST. 2026</span>
+        <i />
+        <small>LEARN · BUILD · GO BEYOND</small>
+      </div>
 
       <section className="welcome-hero" aria-labelledby="welcome-title">
-        <span className="welcome-kicker">THE ACADEMY OPERATING SYSTEM</span>
-        <h1 id="welcome-title">Build beyond<br/><em>the expected.</em></h1>
-        <p className="welcome-lede">One secure workspace for learning, governed AI access, cloud services, projects, and achievement.</p>
+        <span className="welcome-kicker"><i /> THE ACADEMY OPERATING SYSTEM</span>
+        <h1 id="welcome-title">Where ambition<br/><em>becomes ability.</em></h1>
+        <p className="welcome-lede">A private learning and development platform where students access world-class AI, build on cloud infrastructure, and turn their work into verified achievement.</p>
         <div className="welcome-capabilities" aria-label="Platform capabilities">
-          <span>AI models</span><span>Cloud workspaces</span><span>Verified credentials</span>
+          <span><b>01</b> AI model access</span><span><b>02</b> Cloud workspaces</span><span><b>03</b> Verified credentials</span>
         </div>
       </section>
 
