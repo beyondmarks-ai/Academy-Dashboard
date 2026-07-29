@@ -211,12 +211,11 @@ export default function Dashboard() {
         <svg className="watermark-ring" viewBox="0 0 100 100" focusable="false">
           <defs>
             <linearGradient id="gold-ring-gradient" x1="4" y1="50" x2="96" y2="50" gradientUnits="userSpaceOnUse">
-              <stop offset="0" stopColor="#0b2948" />
-              <stop offset=".18" stopColor="#b77a28" />
-              <stop offset=".4" stopColor="#f3d18a" />
-              <stop offset=".62" stopColor="#bd8434" />
-              <stop offset=".83" stopColor="#f0c672" />
-              <stop offset="1" stopColor="#173c60" />
+              <stop offset="0" stopColor="#9a692f" />
+              <stop offset=".36" stopColor="#f8dda2" />
+              <stop offset=".58" stopColor="#c58c3c" />
+              <stop offset=".78" stopColor="#f4ce83" />
+              <stop offset="1" stopColor="#8b5b27" />
             </linearGradient>
           </defs>
           <circle className="ring-halo" cx="50" cy="50" r="48.5" pathLength="1" />
