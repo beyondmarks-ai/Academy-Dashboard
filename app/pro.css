@@ -127,6 +127,25 @@ button, a { -webkit-tap-highlight-color: transparent; }
   transform:translateY(-50%) !important;
 }
 .empty-dashboard .watermark-ring { display:none !important; }
+.empty-dashboard .watermark.ring-drawing .watermark-ring {
+  display:block !important;
+  inset:-5px;
+  width:calc(100% + 10px);
+  height:calc(100% + 10px);
+  filter:drop-shadow(0 0 7px rgba(183,122,40,.28));
+}
+.empty-dashboard .watermark.ring-drawing .ring-stroke {
+  stroke:url("#gold-ring-gradient") !important;
+  stroke-width:1.05 !important;
+  filter:drop-shadow(0 0 1.4px rgba(11,41,72,.34)) drop-shadow(0 0 3px rgba(189,132,52,.5)) !important;
+  animation:draw-gold-ring 1.55s .08s cubic-bezier(.48,.04,.18,1) forwards !important;
+}
+.empty-dashboard .watermark.ring-drawing .ring-halo {
+  stroke:rgba(183,122,40,.28) !important;
+  stroke-width:2.3 !important;
+  filter:blur(2.8px) !important;
+  animation:draw-gold-ring 1.55s .08s cubic-bezier(.48,.04,.18,1) forwards !important;
+}
 .landing-visual-caption {
   position:absolute; z-index:6; right:clamp(45px,8vw,150px); top:calc(48% + min(19vw, 295px));
   width:min(36vw,560px); padding-top:22px; display:flex; align-items:center; gap:14px;
