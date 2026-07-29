@@ -80,7 +80,7 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
   return <>
     <section className="azure-services-box" aria-labelledby="azure-services-title">
       <header>
-        <div className="azure-services-title"><ServiceGlyph label="Azure"/><div><p>Cloud resources</p><h2 id="azure-services-title">Azure services</h2></div></div>
+        <div className="azure-services-title"><ServiceGlyph label="Azure"/><div><p>Managed infrastructure</p><h2 id="azure-services-title">Cloud services</h2></div></div>
         <span className="azure-live-indicator"><i/>{provisioning.length?`${provisioning.length} provisioning`:`${active.length} active`}</span>
       </header>
       <div className="azure-service-metrics">

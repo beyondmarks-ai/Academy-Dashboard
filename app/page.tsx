@@ -586,14 +586,17 @@ Finished and ready for integration.`,
 
       <div className="dashboard-left-stack">
       <section className="learner-academics-box">
-        <div className="projects-heading"><div><p>Learning</p><h2>Courses and certificates</h2></div></div>
+        <div className="projects-heading">
+          <div><p>Learning progress</p><h2>Courses &amp; credentials</h2></div>
+          <span className="section-summary">{myCourses.length} enrolled · {myCertificates.length} earned</span>
+        </div>
         <div className="learner-course-list">{myCourses.length?myCourses.map(course=><article key={course.id}><div><strong>{course.course_title||course.title}</strong><small>{course.status}</small></div><span>{course.progress}%</span><i><b style={{width:`${course.progress}%`}}/></i></article>):<p>No course enrollments yet.</p>}</div>
         <div className="learner-certificate-list">{myCertificates.map(certificate=><a key={certificate.id} href={`/api/academy/v1/certificates/${certificate.id}/download`}><span>Certificate</span><strong>{certificate.course_title}</strong><small>{certificate.verification_number}</small></a>)}</div>
       </section>
       <section className="api-access-box" aria-labelledby="api-access-title">
         <div className="api-access-heading">
           <span className="api-access-icon" aria-hidden="true"><ApiKeyIcon type="key" /></span>
-          <div><p>Developer access</p><h2 id="api-access-title">Models and API keys</h2></div>
+          <div><p>Developer platform</p><h2 id="api-access-title">AI model access</h2></div>
         </div>
         <div className="api-option-list">
           <button type="button" className={activeApiOption === "request" ? "active" : ""} onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>
@@ -617,7 +620,7 @@ Finished and ready for integration.`,
 
       <section className="projects-box" aria-labelledby="projects-title">
         <div className="projects-heading">
-          <div><p>Projects</p><h2 id="projects-title">Your work</h2></div>
+          <div><p>Portfolio</p><h2 id="projects-title">Your projects</h2></div>
           <button type="button" onClick={() => setProjectComposerOpen(true)}><span>+</span> New project</button>
         </div>
         <div className="project-filter" role="tablist" aria-label="Filter projects">
@@ -871,7 +874,7 @@ Finished and ready for integration.`,
             <div className="notification-illustration" aria-hidden="true">
               <Image src="/ringing-bell-loop.svg" alt="" fill sizes="60px" />
             </div>
-            <div><h2 id="notification-title">Activity</h2><p><i /> Inbox</p></div>
+            <div><h2 id="notification-title">Academy inbox</h2><p><i /> Updates &amp; decisions</p></div>
           </div>
           <span className="notification-count">{notifications.filter((item) => item.unread).length}</span>
         </div>
@@ -938,12 +941,12 @@ Finished and ready for integration.`,
       <section className="dashboard-welcome" aria-labelledby="dashboard-welcome-title">
         <div className="dashboard-hero-copy">
           <div className="dashboard-welcome-mark" aria-hidden="true"><i /><span /><i /></div>
-          <p>Overview</p>
-          <h1 id="dashboard-welcome-title">Welcome, <span>{userName}</span></h1>
-          <small>Courses, developer resources, cloud access and project activity in one workspace.</small>
+          <p>Workspace overview</p>
+          <h1 id="dashboard-welcome-title">Good to see you, <span>{userName}.</span></h1>
+          <small>Your learning, developer access, cloud resources, and project activity—organized in one place.</small>
           <div className="dashboard-hero-actions">
-            <button type="button" className="dashboard-hero-primary" onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>Request access <span>→</span></button>
-            <button type="button" className="dashboard-hero-secondary" onClick={() => document.getElementById("azure-services-title")?.scrollIntoView({behavior:"smooth", block:"center"})}>Browse services</button>
+            <button type="button" className="dashboard-hero-primary" onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>Request model access <span>→</span></button>
+            <button type="button" className="dashboard-hero-secondary" onClick={() => document.getElementById("azure-services-title")?.scrollIntoView({behavior:"smooth", block:"center"})}>Explore cloud services</button>
           </div>
         </div>
         <div className="dashboard-hero-metrics" aria-label="Workspace overview">
