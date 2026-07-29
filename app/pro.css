@@ -90,6 +90,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
   border-radius:50%;
   box-shadow:0 38px 85px rgba(12,35,61,.16);
 }
+.empty-dashboard .watermark img,
+.empty-dashboard .watermark:hover img,
+.empty-dashboard .watermark.ring-drawing img,
+.empty-dashboard .watermark.ring-complete img,
+.empty-dashboard .watermark.color-revealed img {
+  opacity:1 !important;
+  filter:none !important;
+  mix-blend-mode:normal !important;
+  animation:none !important;
+}
+.empty-dashboard .watermark.ring-drawing,
+.empty-dashboard .watermark.ring-complete,
+.empty-dashboard .watermark.color-revealed {
+  left:auto !important;
+  transform:translateY(-50%) !important;
+  opacity:1 !important;
+  filter:none !important;
+}
 .empty-dashboard .watermark::after {
   display:none !important;
 }
