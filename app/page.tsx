@@ -195,7 +195,9 @@ export default function Dashboard() {
         <div className="landing-nav-actions">
           <span className="landing-status"><i /> Platform operational</span>
           <a href="/docs/api">Developer docs</a>
-          <button type="button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Member sign in</button>
+          <button className="landing-admin-link" type="button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login", true)}>Administration</button>
+          <button className="landing-create-account" type="button" disabled={Boolean(openingMode)} onClick={() => beginAuth("signup")}>Create account</button>
+          <button className="landing-member-signin" type="button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Member sign in</button>
         </div>
       </header>
       <div className={`watermark ${openingMode ? "ring-drawing" : ""} ${authMode ? "color-revealed" : ""}`} aria-hidden="true">
@@ -221,33 +223,22 @@ export default function Dashboard() {
         </svg>
       </div>
       <div className="landing-visual-caption" aria-hidden="true">
-        <span>BEYOND MARKS · EST. 2026</span>
+        <span>BEYOND MARKS · EST. 2025</span>
         <i />
         <small>LEARN · BUILD · GO BEYOND</small>
       </div>
 
       <section className="welcome-hero" aria-labelledby="welcome-title">
-        <span className="welcome-kicker"><i /> THE ACADEMY OPERATING SYSTEM</span>
-        <h1 id="welcome-title">Where ambition<br/><em>becomes ability.</em></h1>
-        <p className="welcome-lede">A private learning and development platform where students access world-class AI, build on cloud infrastructure, and turn their work into verified achievement.</p>
-        <div className="welcome-capabilities" aria-label="Platform capabilities">
-          <span><b>01</b> AI model access</span><span><b>02</b> Cloud workspaces</span><span><b>03</b> Verified credentials</span>
+        <span className="welcome-kicker"><i /> PRIVATE ACADEMY PLATFORM</span>
+        <h1 id="welcome-title">Learn deeply.<br/><em>Build boldly.</em></h1>
+        <p className="welcome-lede">Beyond Marks gives emerging builders one governed environment to learn with frontier technology, create real products, and graduate with work that speaks for itself.</p>
+        <div className="welcome-detail-grid" aria-label="Academy platform">
+          <article><span>01</span><div><strong>Frontier learning</strong><p>Work with leading AI models through managed, documented access.</p></div></article>
+          <article><span>02</span><div><strong>Real infrastructure</strong><p>Move from lessons to live cloud projects inside one secure workspace.</p></div></article>
+          <article><span>03</span><div><strong>Verified progress</strong><p>Keep projects, credentials, and achievements connected to your identity.</p></div></article>
         </div>
+        <p className="welcome-trustline"><i /> Governed access · Transparent usage · Human oversight</p>
       </section>
-
-      <footer className="auth-footer">
-        <button type="button" className="login-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login")}>Enter workspace <span>↗</span></button>
-        <button type="button" className="signup-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("signup")}>Create account</button>
-        <button type="button" className="admin-signin-button" disabled={Boolean(openingMode)} onClick={() => beginAuth("login", true)}>
-          Administration
-        </button>
-      </footer>
-
-      <div className="landing-proof" aria-label="Platform foundations">
-        <span><b>01</b><strong>Governed access</strong><small>Identity and approval controls</small></span>
-        <span><b>02</b><strong>Usage metering</strong><small>Transparent live allowances</small></span>
-        <span><b>03</b><strong>Production tooling</strong><small>From learning to deployment</small></span>
-      </div>
 
       {authMode && (
         <div className="auth-modal-layer" role="presentation" onMouseDown={closeAuth}>

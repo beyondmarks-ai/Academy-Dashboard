@@ -71,10 +71,19 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .landing-nav-actions > a { color:#526171; text-decoration:none; font-size:12px; font-weight:650; transition:.2s ease; }
 .landing-nav-actions > a:hover { color:#0b2948; }
 .landing-nav-actions > button {
-  border:1px solid #0b2948; background:#0b2948; color:#fff; padding:11px 17px; border-radius:9px;
+  border:0; background:transparent; color:#526171; padding:11px 3px; border-radius:9px;
   font-size:12px; font-weight:700; cursor:pointer; transition:.2s ease;
 }
-.landing-nav-actions > button:hover { transform:translateY(-1px); background:#123b62; }
+.landing-nav-actions > button:hover { color:#0b2948; }
+.landing-nav-actions > .landing-admin-link { color:#78838d; font-weight:600; }
+.landing-nav-actions > .landing-create-account {
+  padding:10px 16px; border:1px solid rgba(12,35,61,.15); background:rgba(255,255,255,.62); color:#173651;
+}
+.landing-nav-actions > .landing-create-account:hover { background:#fff; border-color:rgba(12,35,61,.28); transform:translateY(-1px); }
+.landing-nav-actions > .landing-member-signin {
+  border:1px solid #0b2948; background:#0b2948; color:#fff; padding:11px 17px;
+}
+.landing-nav-actions > .landing-member-signin:hover { color:#fff; transform:translateY(-1px); background:#123b62; }
 .landing-status { color:#687784; font-size:10px; font-weight:600; display:flex; align-items:center; gap:8px; }
 .landing-status i { width:7px; height:7px; border-radius:50%; background:#2ba875; box-shadow:0 0 0 5px rgba(43,168,117,.09); }
 .empty-dashboard .watermark {
@@ -133,7 +142,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   left:clamp(28px,7vw,116px) !important;
   right:auto !important;
   width:min(700px,57vw) !important;
-  transform:translateY(-59%) !important;
+  transform:translateY(-52%) !important;
   text-align:left !important;
   align-items:flex-start !important;
   animation:pro-rise .75s cubic-bezier(.2,.8,.2,1) both;
@@ -152,13 +161,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
   max-width:570px; margin:28px 0 0 !important; color:#64717d !important; font-size:clamp(16px,1.25vw,20px) !important;
   line-height:1.62 !important; letter-spacing:-.02em !important; text-transform:none !important;
 }
-.welcome-capabilities { display:flex; flex-wrap:wrap; gap:9px; margin-top:28px; }
-.welcome-capabilities span {
-  color:#465867; border-left:1px solid rgba(12,35,61,.17); padding:3px 15px; font-size:11px;
-  background:transparent;
+.welcome-detail-grid {
+  width:min(700px,100%); margin-top:32px; display:grid; grid-template-columns:repeat(3,1fr);
+  border-top:1px solid rgba(12,35,61,.13); border-bottom:1px solid rgba(12,35,61,.13);
 }
-.welcome-capabilities span:first-child { padding-left:0; border-left:0; }
-.welcome-capabilities b { color:#b38234; font-size:9px; margin-right:6px; }
+.welcome-detail-grid article {
+  min-width:0; padding:20px 19px 20px 0; display:grid; grid-template-columns:26px 1fr; gap:7px;
+  border-right:1px solid rgba(12,35,61,.1);
+}
+.welcome-detail-grid article + article { padding-left:19px; }
+.welcome-detail-grid article:last-child { border-right:0; padding-right:0; }
+.welcome-detail-grid article > span { color:#b38234; font-size:9px; font-weight:750; letter-spacing:.08em; padding-top:2px; }
+.welcome-detail-grid strong { display:block; color:#183651; font-size:12px; letter-spacing:-.01em; }
+.welcome-detail-grid p { margin:7px 0 0; color:#77838d; font-size:10px; line-height:1.55; letter-spacing:0; }
+.welcome-trustline {
+  margin:17px 0 0 !important; display:flex; align-items:center; gap:9px; color:#84909a !important;
+  font-size:9px !important; font-weight:650; letter-spacing:.08em !important; text-transform:uppercase;
+}
+.welcome-trustline i { width:6px; height:6px; border-radius:50%; background:#2ba875; box-shadow:0 0 0 4px rgba(43,168,117,.09); }
 .welcome-ornament,.welcome-rule,.welcome-tagline { display:none !important; }
 .auth-footer {
   position:absolute !important; z-index:8; left:clamp(28px,7vw,116px) !important; bottom:clamp(116px,15vh,175px) !important;
@@ -393,8 +413,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .api-doc-code header { background:#141417 !important; border-color:#29292f !important; }
 
 @keyframes pro-rise {
-  from { opacity:0; transform:translateY(calc(-59% + 22px)); }
-  to { opacity:1; transform:translateY(-59%); }
+  from { opacity:0; transform:translateY(calc(-52% + 22px)); }
+  to { opacity:1; transform:translateY(-52%); }
 }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
@@ -408,16 +428,21 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .notification-box { position:relative !important; top:auto !important; }
   .dashboard-welcome { align-items:flex-start !important; flex-direction:column !important; gap:28px; }
 }
+@media (max-width:900px) {
+  .landing-nav-actions { gap:16px; }
+  .landing-status,.landing-nav-actions > .landing-admin-link { display:none; }
+}
 @media (max-width:720px) {
   .landing-nav { height:70px; padding:0 18px; }
   .landing-nav-actions > a,.landing-nav-actions > button { display:none; }
+  .landing-nav-actions > .landing-member-signin { display:block; padding:9px 12px; font-size:11px; }
   .landing-brand img { width:34px; height:34px; }
   .empty-dashboard .watermark { width:290px !important; height:290px !important; right:18px !important; top:58% !important; opacity:1 !important; }
   .landing-visual-caption { display:none; }
-  .welcome-hero { left:22px !important; width:calc(100vw - 44px) !important; transform:translateY(-72%) !important; }
+  .welcome-hero { left:22px !important; width:calc(100vw - 44px) !important; transform:translateY(-66%) !important; }
   .welcome-hero h1 { font-size:clamp(47px,14vw,68px) !important; }
   .welcome-lede { font-size:15px !important; max-width:88%; }
-  .welcome-capabilities { display:none; }
+  .welcome-detail-grid { display:none; }
   .auth-footer { left:22px !important; right:22px !important; bottom:105px !important; flex-wrap:wrap; }
   .auth-footer .admin-signin-button { display:none; }
   .landing-proof { left:22px; right:22px; height:66px; }
