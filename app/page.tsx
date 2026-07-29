@@ -230,8 +230,8 @@ export default function Dashboard() {
 
       <section className="welcome-hero" aria-labelledby="welcome-title">
         <span className="welcome-kicker"><i /> PRIVATE ACADEMY PLATFORM</span>
-        <h1 id="welcome-title">Learn deeply.<br/><em>Build boldly.</em></h1>
-        <p className="welcome-lede">Beyond Marks gives emerging builders one governed environment to learn with frontier technology, create real products, and graduate with work that speaks for itself.</p>
+        <h1 id="welcome-title"><span>Learn deeply.</span><em>Build boldly.</em></h1>
+        <p className="welcome-lede">A governed environment for ambitious students to master frontier technology, ship real products, and build a verifiable body of work.</p>
         <div className="welcome-detail-grid" aria-label="Academy platform">
           <article><span>01</span><div><strong>Frontier learning</strong><p>Work with leading AI models through managed, documented access.</p></div></article>
           <article><span>02</span><div><strong>Real infrastructure</strong><p>Move from lessons to live cloud projects inside one secure workspace.</p></div></article>
