@@ -942,7 +942,7 @@ Finished and ready for integration.`,
         <div className="dashboard-hero-copy">
           <div className="dashboard-welcome-mark" aria-hidden="true"><i /><span /><i /></div>
           <p>Workspace overview</p>
-          <h1 id="dashboard-welcome-title">Good to see you, <span>{userName}.</span></h1>
+          <h1 id="dashboard-welcome-title">Good to see you, <span>{userName}</span></h1>
           <small>Your learning, developer access, cloud resources, and project activity—organized in one place.</small>
           <div className="dashboard-hero-actions">
             <button type="button" className="dashboard-hero-primary" onClick={() => { setActiveApiOption("request"); setApiRequestOpen(true); }}>Request model access <span>→</span></button>
