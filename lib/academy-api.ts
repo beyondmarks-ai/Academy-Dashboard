@@ -233,6 +233,53 @@ export async function getApiUsage(id:string){return(await apiRequest<ApiEnvelope
 export async function getServiceAccess(){return(await apiRequest<ApiEnvelope<ServiceAccessOverview>>("/api/v1/service-access")).data;}
 export async function requestServiceAccess(input:{serviceType:AzureServiceType;projectName:string;planCode:"explore"|"build"|"scale";requestedQuota:number;requestedUnit:AzureQuotaUnit;useCase:string;configuration:Record<string,unknown>}){return(await apiRequest<ApiEnvelope<ServiceAccessRequest>>("/api/v1/service-access/requests",{method:"POST",body:JSON.stringify(input)})).data;}
 
+export type ServiceConsoleStatus={serviceType:AzureServiceType;status:"active";quota:{limit:number;used:number;remaining:number;unit:AzureQuotaUnit};expiresAt:string|null};
+export type ServiceBlobObject={name:string;size:number;contentType:string|null;updatedAt:string|null};
+export type ServiceDatabaseRecord={key:string;value:unknown;created_at:string;updated_at:string};
+export type ServiceMessage={id:string;topic:string;payload:unknown;status:"available"|"acknowledged";created_at:string;acknowledged_at?:string|null};
+export type ServiceMonitorEvent={id:string;value:unknown;created_at:string};
+export type ServiceJob={id:string;service_type:AzureServiceType;operation:string;status:"queued"|"running"|"succeeded"|"failed"|"cancelled";output:unknown;error_message:string|null;created_at:string;started_at:string|null;completed_at:string|null};
+
+function serviceConsolePath(serviceType:AzureServiceType,operation="",resourceId="",query?:URLSearchParams){
+  const parts=["/api/academy/v1/service-console",encodeURIComponent(serviceType)];
+  if(operation)parts.push(encodeURIComponent(operation));
+  if(resourceId)parts.push(encodeURIComponent(resourceId));
+  return `${parts.join("/")}${query?.size?`?${query}`:""}`;
+}
+async function serviceConsoleJson<T>(serviceType:AzureServiceType,operation="",init:RequestInit={},resourceId="",query?:URLSearchParams){
+  const response=await fetch(serviceConsolePath(serviceType,operation,resourceId,query),{
+    ...init,
+    headers:{...(init.body?{"content-type":"application/json"}:{}),...init.headers},
+  });
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload?.error?.message||`Service console request failed (${response.status}).`);
+  return payload.data as T;
+}
+export function getServiceConsoleStatus(serviceType:AzureServiceType){return serviceConsoleJson<ServiceConsoleStatus>(serviceType);}
+export function listServiceBlobs(prefix=""){return serviceConsoleJson<{objects:ServiceBlobObject[]}>("blob_storage","objects",{}, "",new URLSearchParams(prefix?{prefix}:{}));}
+export async function uploadServiceBlob(name:string,file:File){
+  const response=await fetch(serviceConsolePath("blob_storage","objects",name),{method:"PUT",headers:{"content-type":file.type||"application/octet-stream"},body:file});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload?.error?.message||`Upload failed (${response.status}).`);
+  return payload.data as {name:string;size:number};
+}
+export async function downloadServiceBlob(name:string){
+  const response=await fetch(serviceConsolePath("blob_storage","objects",name));
+  if(!response.ok){const payload=await response.json().catch(()=>({}));throw new Error(payload?.error?.message||`Download failed (${response.status}).`);}
+  return {blob:await response.blob(),contentType:response.headers.get("content-type")||"application/octet-stream"};
+}
+export function deleteServiceBlob(name:string){return serviceConsoleJson<{deleted:boolean}>("blob_storage","objects",{method:"DELETE"},name);}
+export function listDatabaseRecords(collection:string){return serviceConsoleJson<{records:ServiceDatabaseRecord[]}>("database","records",{},"",new URLSearchParams({collection}));}
+export function saveDatabaseRecord(collection:string,key:string,value:unknown){return serviceConsoleJson<ServiceDatabaseRecord>("database","records",{method:"PUT",body:JSON.stringify({collection,value})},key);}
+export function deleteDatabaseRecord(collection:string,key:string){return serviceConsoleJson<{deleted:boolean}>("database","records",{method:"DELETE"},key,new URLSearchParams({collection}));}
+export function receiveServiceMessages(topic:string){return serviceConsoleJson<{messages:ServiceMessage[]}>("messaging","receive",{},"",new URLSearchParams({topic}));}
+export function publishServiceMessage(topic:string,payload:unknown){return serviceConsoleJson<ServiceMessage>("messaging","publish",{method:"POST",body:JSON.stringify({topic,payload})});}
+export function acknowledgeServiceMessage(id:string){return serviceConsoleJson<ServiceMessage>("messaging","ack",{method:"POST",body:JSON.stringify({id})});}
+export function listMonitoringEvents(){return serviceConsoleJson<{events:ServiceMonitorEvent[]}>("monitoring","events");}
+export function createMonitoringEvent(value:unknown){return serviceConsoleJson<{id:string;accepted:boolean}>("monitoring","events",{method:"POST",body:JSON.stringify(value)});}
+export function listServiceJobs(serviceType:Exclude<AzureServiceType,"blob_storage"|"database"|"messaging"|"monitoring">){return serviceConsoleJson<{jobs:ServiceJob[]}>(serviceType,"jobs");}
+export function createServiceJob(serviceType:Exclude<AzureServiceType,"blob_storage"|"database"|"messaging"|"monitoring">,operation:string,input:unknown){return serviceConsoleJson<ServiceJob>(serviceType,"jobs",{method:"POST",body:JSON.stringify({operation,input})});}
+
 export async function adminGetStudents(search = "") {
   const query = search ? `?search=${encodeURIComponent(search)}` : "";
   return (await apiRequest<ApiEnvelope<AdminStudent[]>>(`/api/v1/admin/students${query}`)).data;

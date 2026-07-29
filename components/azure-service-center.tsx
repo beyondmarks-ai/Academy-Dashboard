@@ -8,6 +8,7 @@ import {
   type AzureServiceType,
   type ServiceAccessOverview,
 } from "@/lib/academy-api";
+import {ServiceExplorer} from "@/components/service-explorer";
 
 const emptyOverview: ServiceAccessOverview = { requests: [], entitlements: [], ledger: { events: [], allocations: [] } };
 
@@ -23,6 +24,7 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
   const [selectedPlan,setSelectedPlan]=useState<"explore"|"build"|"scale">("explore");
   const [pending,setPending]=useState(false);
   const [success,setSuccess]=useState("");
+  const [explorerId,setExplorerId]=useState<string|null>(null);
   const selected=AZURE_SERVICE_CATALOG.find(item=>item.type===selectedType)!;
   const plan=selected.plans.find(item=>item.code===selectedPlan)!;
 
@@ -87,7 +89,7 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
         <article><small>Usage</small><strong>{overallUsage}%</strong><span>across allowances</span></article>
       </div>
       <div className="azure-service-preview">
-        {AZURE_SERVICE_CATALOG.slice(0,4).map(item=><button key={item.type} type="button" onClick={()=>{chooseService(item.type);setView("catalog");setOpen(true);}}><ServiceGlyph label={item.shortName}/><span><strong>{item.shortName}</strong><small>{overview.entitlements.some(value=>value.service_type===item.type&&value.status==="active")?"Active":overview.requests.some(value=>value.service_type===item.type&&value.status==="pending")?"In review":"Available"}</small></span><i>›</i></button>)}
+        {AZURE_SERVICE_CATALOG.slice(0,4).map(item=>{const entitlement=overview.entitlements.find(value=>value.service_type===item.type&&value.status==="active");return <button key={item.type} type="button" onClick={()=>{if(entitlement)setExplorerId(entitlement.id);else{chooseService(item.type);setView("catalog");setOpen(true);}}}><ServiceGlyph label={item.shortName}/><span><strong>{item.shortName}</strong><small>{entitlement?"Open workspace":overview.requests.some(value=>value.service_type===item.type&&value.status==="pending")?"In review":"Available"}</small></span><i>›</i></button>;})}
       </div>
       <footer><button type="button" onClick={()=>{setView("catalog");setOpen(true);}}>Browse all services</button><button type="button" onClick={()=>{setView("ledger");setOpen(true);}}>Open usage ledger</button></footer>
     </section>
@@ -107,6 +109,7 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
           <div className="azure-service-detail">
             <div className="azure-detail-heading"><ServiceGlyph label={selected.shortName}/><div><span>MANAGED AZURE SERVICE</span><h3>{selected.name}</h3><p>{selected.description}</p></div></div>
             <div className="azure-feature-row">{selected.features.map(feature=><span key={feature}>✓ {feature}</span>)}</div>
+            {overview.entitlements.some(item=>item.service_type===selected.type&&item.status==="active")&&<button className="azure-open-workspace" onClick={()=>{const item=overview.entitlements.find(value=>value.service_type===selected.type&&value.status==="active");if(item){setOpen(false);setExplorerId(item.id);}}}>Open {selected.shortName} workspace <span>↗</span></button>}
             <form onSubmit={submit}>
               <label><span>Project name</span><input name="projectName" minLength={2} maxLength={120} placeholder="Project using this service" required/></label>
               <fieldset><legend>Choose an allowance</legend><div className="azure-plan-grid">{selected.plans.map(item=><button type="button" key={item.code} className={selectedPlan===item.code?"active":""} onClick={()=>setSelectedPlan(item.code)}><small>{item.name}</small><strong>{item.label}</strong><span>{item.code==="explore"?"Prototype":item.code==="build"?"Regular projects":"Advanced workloads"}</span></button>)}</div></fieldset>
@@ -122,12 +125,13 @@ export function AzureServiceCenter({ authenticated, onError }: { authenticated: 
           <div className="azure-entitlement-grid">{overview.entitlements.map(item=>{
             const catalog=AZURE_SERVICE_CATALOG.find(value=>value.type===item.service_type);
             const percent=Math.min(100,(item.usage_count/item.quota_limit)*100);
-            return <article key={item.id}><header><ServiceGlyph label={catalog?.shortName||item.service_type}/><div><strong>{item.display_name}</strong><small>{catalog?.name}</small></div><span className={`service-status ${item.status}`}>{item.status}</span></header><div className="service-quota-numbers"><strong>{formatServiceUnits(item.usage_count,item.quota_unit)}</strong><span>of {formatServiceUnits(item.quota_limit,item.quota_unit)}</span></div><div className="service-quota-track"><i style={{width:`${percent}%`}}/></div><footer><span>{Math.max(0,item.quota_limit-item.usage_count).toLocaleString()} remaining</span><time>{item.expires_at?`Expires ${new Date(item.expires_at).toLocaleDateString()}`:"No expiry"}</time></footer></article>;
+            return <article key={item.id}><header><ServiceGlyph label={catalog?.shortName||item.service_type}/><div><strong>{item.display_name}</strong><small>{catalog?.name}</small></div><span className={`service-status ${item.status}`}>{item.status}</span></header><div className="service-quota-numbers"><strong>{formatServiceUnits(item.usage_count,item.quota_unit)}</strong><span>of {formatServiceUnits(item.quota_limit,item.quota_unit)}</span></div><div className="service-quota-track"><i style={{width:`${percent}%`}}/></div><footer><span>{Math.max(0,item.quota_limit-item.usage_count).toLocaleString()} remaining</span><time>{item.expires_at?`Expires ${new Date(item.expires_at).toLocaleDateString()}`:"No expiry"}</time></footer>{item.status==="active"&&<button className="azure-entitlement-open" onClick={()=>{setOpen(false);setExplorerId(item.id);}}>Open service workspace <span>↗</span></button>}</article>;
           })}{!overview.entitlements.length&&<div className="azure-ledger-empty"><ServiceGlyph label="Ledger"/><strong>No service allowances yet</strong><p>Approved Azure service requests will appear here with an exact, append-only usage history.</p><button onClick={()=>setView("catalog")}>Browse services</button></div>}</div>
           {!!overview.ledger.events.length&&<div className="azure-ledger-table"><header><h3>Recent usage events</h3><span>IMMUTABLE METERING HISTORY</span></header><div><table><thead><tr><th>Time</th><th>Service</th><th>Operation</th><th>Usage</th><th>Status</th></tr></thead><tbody>{overview.ledger.events.map(event=><tr key={event.id}><td>{new Date(event.occurred_at).toLocaleString()}</td><td>{AZURE_SERVICE_CATALOG.find(item=>item.type===event.service_type)?.shortName||event.service_type}</td><td>{event.operation}</td><td>{formatServiceUnits(event.quantity,event.quota_unit)}</td><td><span className={`service-status ${event.status}`}>{event.status}</span></td></tr>)}</tbody></table></div></div>}
           {!!overview.requests.length&&<div className="azure-request-history"><h3>Request history</h3>{overview.requests.map(item=><article key={item.id}><span className={`service-status ${item.status}`}>{item.status}</span><div><strong>{AZURE_SERVICE_CATALOG.find(value=>value.type===item.service_type)?.name||item.service_type}</strong><small>{item.project_name} · {item.plan_code} · {new Date(item.created_at).toLocaleDateString()}</small></div>{item.review_notes&&<p>{item.review_notes}</p>}</article>)}</div>}
         </div>}
       </section>
     </div>}
+    {explorerId&&<ServiceExplorer entitlements={overview.entitlements} initialId={explorerId} onClose={()=>setExplorerId(null)} onChanged={()=>void refresh()}/>}
   </>;
 }

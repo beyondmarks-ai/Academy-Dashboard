@@ -41,11 +41,12 @@ export async function listAcademyServiceBlobs(prefix:string){
 
 export async function downloadAcademyServiceBlob(blobName:string){
   const container=await ensureAcademyServiceContainer();
-  const response=await container.getBlobClient(blobName).download();
-  if(!response.readableStreamBody)return Buffer.alloc(0);
+  const blob=container.getBlobClient(blobName);
+  const [response,properties]=await Promise.all([blob.download(),blob.getProperties()]);
+  if(!response.readableStreamBody)return {data:Buffer.alloc(0),contentType:properties.contentType||"application/octet-stream"};
   const chunks:Buffer[]=[];
   for await(const chunk of response.readableStreamBody)chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));
-  return Buffer.concat(chunks);
+  return {data:Buffer.concat(chunks),contentType:properties.contentType||"application/octet-stream"};
 }
 
 export async function deleteAcademyServiceBlob(blobName:string){
