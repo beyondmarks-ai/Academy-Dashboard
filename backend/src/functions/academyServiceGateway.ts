@@ -6,6 +6,7 @@ import { errorResponse,HttpError } from "../http.js";
 import { deleteAcademyServiceBlob,downloadAcademyServiceBlob,listAcademyServiceBlobs,uploadAcademyServiceBlob } from "../storage.js";
 
 const serviceTypes=new Set(["blob_storage","container_compute","machine_learning","database","functions","document_intelligence","speech_vision","messaging","monitoring"]);
+const serviceAliases:Record<string,string>={storage:"blob_storage",blob:"blob_storage","blob-storage":"blob_storage",db:"database"};
 type Entitlement={id:string;user_id:string;service_type:string;quota_limit:number;quota_unit:string;usage_count:number;status:string;expires_at:string|null};
 
 function academyKey(request:HttpRequest){
@@ -76,35 +77,37 @@ function jsonResponse(status:number,data:unknown,item:Entitlement,charged=0):Htt
 
 async function gateway(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   try{
-    const serviceType=request.params.serviceType||"";
+    const requestedServiceType=request.params.serviceType||"";
+    const serviceType=serviceAliases[requestedServiceType]||requestedServiceType;
     const operation=request.params.operation||"status";
+    const resourceId=request.params.resourceId||"";
     if(!serviceTypes.has(serviceType))throw new HttpError(404,"Unknown Academy Azure service.");
     const item=await entitlementFor(request,serviceType);
     if(operation==="status")return jsonResponse(200,{serviceType,status:"active",quota:{limit:item.quota_limit,used:item.usage_count,remaining:Math.max(0,item.quota_limit-item.usage_count),unit:item.quota_unit},expiresAt:item.expires_at},item);
 
     if(serviceType==="blob_storage"){
-      if(operation==="upload"&&request.method==="PUT"){
-        const name=safeName(request.query.get("name")||"");
+      if((operation==="upload"||operation==="objects")&&["PUT","POST"].includes(request.method)){
+        const name=safeName(resourceId||request.query.get("name")||"");
         const blobName=`${item.user_id}/${item.id}/${name}`;
         const data=Buffer.from(await request.arrayBuffer());
         const charged=await consume(item,data.byteLength,"blob.upload",request,{name});
         await uploadAcademyServiceBlob(blobName,data,request.headers.get("content-type")||"application/octet-stream");
         return jsonResponse(201,{name,size:data.byteLength},item,charged);
       }
-      if(operation==="download"&&request.method==="GET"){
-        const name=safeName(request.query.get("name")||"");
+      if((operation==="download"||(operation==="objects"&&!!resourceId))&&request.method==="GET"){
+        const name=safeName(resourceId||request.query.get("name")||"");
         const blobName=`${item.user_id}/${item.id}/${name}`;
         const data=await downloadAcademyServiceBlob(blobName);
         const charged=await consume(item,data.byteLength,"blob.download",request,{name});
         return {status:200,body:data,headers:{"content-type":"application/octet-stream","cache-control":"private, no-store","x-academy-usage-charged":String(charged)}};
       }
-      if(operation==="delete"&&request.method==="DELETE"){
-        const name=safeName(request.query.get("name")||"");
+      if((operation==="delete"||operation==="objects")&&request.method==="DELETE"){
+        const name=safeName(resourceId||request.query.get("name")||"");
         const blobName=`${item.user_id}/${item.id}/${name}`;
         await deleteAcademyServiceBlob(blobName);const charged=await consume(item,1,"blob.delete",request,{name});
         return jsonResponse(200,{deleted:true,name},item,charged);
       }
-      if(operation==="list"&&request.method==="GET"){
+      if((operation==="list"||(operation==="objects"&&!resourceId))&&request.method==="GET"){
         const prefix=`${item.user_id}/${item.id}/${request.query.get("prefix")||""}`;
         const blobs=await listAcademyServiceBlobs(prefix);const charged=await consume(item,1,"blob.list",request);
         return jsonResponse(200,{objects:blobs},item,charged);
@@ -112,21 +115,30 @@ async function gateway(request:HttpRequest,context:InvocationContext):Promise<Ht
     }
 
     if(serviceType==="database"){
-      if(operation==="records"&&request.method==="PUT"){
+      if(operation==="records"&&["PUT","POST"].includes(request.method)){
         const body=await jsonBody(request),collection=String(body.collection||"default"),key=String(body.key||"");
-        if(!key||key.length>200)throw new HttpError(422,"A record key is required.");
+        const recordKey=resourceId||key;
+        if(!recordKey||recordKey.length>200)throw new HttpError(422,"A record key is required in the URL or request body.");
         const value=body.value??null,bytes=Buffer.byteLength(JSON.stringify(value));
-        const charged=await consume(item,Math.max(1,bytes/1_048_576),"database.upsert",request,{collection,key,bytes});
-        await query(`INSERT INTO academy_service_records(entitlement_id,collection,record_key,value) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT(entitlement_id,collection,record_key) DO UPDATE SET value=excluded.value,updated_at=now()`,[item.id,collection,key,JSON.stringify(value)]);
-        return jsonResponse(200,{collection,key,value},item,charged);
+        const charged=await consume(item,Math.max(1,bytes/1_048_576),"database.upsert",request,{collection,key:recordKey,bytes});
+        await query(`INSERT INTO academy_service_records(entitlement_id,collection,record_key,value) VALUES($1,$2,$3,$4::jsonb) ON CONFLICT(entitlement_id,collection,record_key) DO UPDATE SET value=excluded.value,updated_at=now()`,[item.id,collection,recordKey,JSON.stringify(value)]);
+        return jsonResponse(200,{collection,key:recordKey,value},item,charged);
       }
       if(operation==="records"&&request.method==="GET"){
-        const collection=request.query.get("collection")||"default",key=request.query.get("key");
+        const collection=request.query.get("collection")||"default",key=resourceId||request.query.get("key");
         const result=key
           ?await query(`SELECT record_key key,value,created_at,updated_at FROM academy_service_records WHERE entitlement_id=$1 AND collection=$2 AND record_key=$3`,[item.id,collection,key])
           :await query(`SELECT record_key key,value,created_at,updated_at FROM academy_service_records WHERE entitlement_id=$1 AND collection=$2 ORDER BY updated_at DESC LIMIT 200`,[item.id,collection]);
         const charged=await consume(item,1,"database.read",request,{collection});
         return jsonResponse(200,{records:result.rows},item,charged);
+      }
+      if(operation==="records"&&request.method==="DELETE"){
+        const collection=request.query.get("collection")||"default",key=resourceId||request.query.get("key")||"";
+        if(!key)throw new HttpError(422,"A record key is required in the URL or query string.");
+        const result=await query(`DELETE FROM academy_service_records WHERE entitlement_id=$1 AND collection=$2 AND record_key=$3 RETURNING record_key key`,[item.id,collection,key]);
+        if(!result.rows[0])throw new HttpError(404,"Database record not found.");
+        const charged=await consume(item,1,"database.delete",request,{collection,key});
+        return jsonResponse(200,{deleted:true,collection,key},item,charged);
       }
     }
 
@@ -187,6 +199,12 @@ async function gateway(request:HttpRequest,context:InvocationContext):Promise<Ht
 
 app.http("academyAzureServiceGateway",{
   route:"v1/gateway/azure/v1/{serviceType}/{operation?}",
+  methods:["GET","POST","PUT","DELETE"],
+  authLevel:"anonymous",
+  handler:gateway,
+});
+app.http("academyAzureServiceResourceGateway",{
+  route:"v1/gateway/azure/v1/{serviceType}/{operation}/{resourceId}",
   methods:["GET","POST","PUT","DELETE"],
   authLevel:"anonymous",
   handler:gateway,

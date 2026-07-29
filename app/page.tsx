@@ -23,6 +23,7 @@ import {
   markNotificationRead,
   requestApiAccess,
   revealAcademyCredential,
+  rotateAcademyCredential,
   type AcademyNotification,
   type AcademyProject,
   type AcademySubscription,
@@ -476,6 +477,17 @@ Finished and ready for integration.`,
     }
   };
 
+  const rotateApiKey=async()=>{
+    if(!academyCredential||!window.confirm("Rotate this Academy key now? The old key will stop working immediately in every project."))return;
+    setApiKeyPending(true);setApiKeyError("");
+    try{
+      const rotated=await rotateAcademyCredential();
+      setAcademyCredential({...academyCredential,key_last_four:rotated.keyLastFour,rotated_at:rotated.rotatedAt,revealed_at:rotated.rotatedAt,reveal_count:academyCredential.reveal_count+1,status:"active"});
+      setRevealedApiKey(rotated.apiKey);setApiKeyVisible(true);
+    }catch(error){setApiKeyError(error instanceof Error?error.message:"The Academy key could not be rotated.");}
+    finally{setApiKeyPending(false);}
+  };
+
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -658,6 +670,7 @@ Finished and ready for integration.`,
                   <VisibilityIcon hidden={apiKeyVisible} />
                 </button>
                 <button type="button" className="api-key-copy" disabled={!revealedApiKey} onClick={() => { void navigator.clipboard.writeText(revealedApiKey).then(()=>{setApiKeyCopied(true);window.setTimeout(()=>setApiKeyCopied(false),1800);}).catch(()=>setApiKeyError("Copy failed. Select the key and copy it manually.")); }}>{apiKeyCopied?"Copied":"Copy"}</button>
+                {academyCredential&&<button type="button" className="api-key-rotate" disabled={apiKeyPending} onClick={()=>void rotateApiKey()}>Rotate</button>}
               </div>
               {apiKeyError&&<p className="api-key-error" role="alert">{apiKeyError}</p>}
               <div className="accessed-key-meta">

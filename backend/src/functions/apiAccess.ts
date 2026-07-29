@@ -1,9 +1,12 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { ensureProfile, requireAuth } from "../auth.js";
-import { query } from "../db.js";
+import { query,transaction } from "../db.js";
 import { errorResponse, HttpError, json, parseJson } from "../http.js";
 import { decryptApiCredential } from "../credentialCrypto.js";
+import { encryptApiCredential } from "../credentialCrypto.js";
+import { hashOpaqueToken } from "../security.js";
 
 const capability = z.enum([
   "Azure AI Foundry", "Text & Language", "Image Models", "Video Models",
@@ -89,6 +92,47 @@ async function revealAcademyCredential(request:HttpRequest,context:InvocationCon
   }
 }
 
+async function rotateAcademyCredential(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
+  const requestId=context.invocationId;
+  try{
+    const profile=await ensureProfile(await requireAuth(request));
+    const data=await transaction(async client=>{
+      const result=await client.query<{id:string;credential_hash:string}>(`
+        SELECT id,credential_hash FROM academy_credentials WHERE user_id=$1 FOR UPDATE
+      `,[profile!.id]);
+      const current=result.rows[0];
+      if(!current)throw new HttpError(404,"Your Academy key has not been provisioned yet.");
+      const apiKey=`bm_live_${randomBytes(28).toString("base64url")}`;
+      const encrypted=encryptApiCredential(apiKey),credentialHash=hashOpaqueToken(apiKey),lastFour=apiKey.slice(-4).toUpperCase();
+      await client.query(`
+        INSERT INTO academy_credential_aliases(credential_hash,credential_id,status)
+        VALUES($1,$2,'revoked')
+        ON CONFLICT(credential_hash) DO UPDATE SET status='revoked'
+      `,[current.credential_hash,current.id]);
+      await client.query(`
+        UPDATE academy_credentials
+        SET key_last_four=$1,encrypted_api_key=$2,credential_hash=$3,status='active',
+          revealed_at=now(),reveal_count=reveal_count+1,rotated_at=now(),updated_at=now()
+        WHERE id=$4
+      `,[lastFour,encrypted,credentialHash,current.id]);
+      await client.query(`
+        UPDATE api_subscriptions
+        SET key_last_four=$1,encrypted_api_key=$2,credential_hash=$3,rotated_at=now()
+        WHERE credential_id=$4
+      `,[lastFour,encrypted,credentialHash,current.id]);
+      await client.query(`
+        INSERT INTO audit_events(actor_id,action,entity_type,entity_id,request_id)
+        VALUES($1,'academy-credential.rotated','academy_credential',$2,$3)
+      `,[profile!.id,current.id,requestId]);
+      return {apiKey,keyLastFour:lastFour,rotatedAt:new Date().toISOString()};
+    });
+    return json(200,{data,requestId});
+  }catch(error){
+    context.error("Rotate Academy credential failed",error);
+    return errorResponse(error,requestId);
+  }
+}
+
 async function learnerUsage(request:HttpRequest,context:InvocationContext):Promise<HttpResponseInit>{
   const requestId=context.invocationId;
   try{
@@ -158,4 +202,5 @@ app.http("listApiAccess", { route: "v1/api-access", methods: ["GET"], authLevel:
 app.http("requestApiAccess", { route: "v1/api-access/requests", methods: ["POST"], authLevel: "anonymous", handler: requestAccess });
 app.http("revealApiCredential", { route: "v1/api-access/subscriptions/{id:guid}/credential", methods: ["POST"], authLevel: "anonymous", handler: revealCredential });
 app.http("revealAcademyCredential",{route:"v1/academy-credential/reveal",methods:["POST"],authLevel:"anonymous",handler:revealAcademyCredential});
+app.http("rotateAcademyCredential",{route:"v1/academy-credential/rotate",methods:["POST"],authLevel:"anonymous",handler:rotateAcademyCredential});
 app.http("learnerApiSubscriptionUsage",{route:"v1/api-access/subscriptions/{id:guid}/usage",methods:["GET"],authLevel:"anonymous",handler:learnerUsage});

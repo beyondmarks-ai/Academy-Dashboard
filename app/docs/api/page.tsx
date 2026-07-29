@@ -74,11 +74,11 @@ const models = [
   ["gpt-4o-mini-tts", "Text to speech", "Speech", "requests"],
 ];
 
-const storageExample=`curl -X PUT "${AZURE_BASE_URL}/blob_storage/upload?name=reports/result.json" \\
+const storageExample=`curl -X PUT "${AZURE_BASE_URL}/storage/objects/result.json" \\
   -H "Authorization: Bearer $ACADEMY_API_KEY" \\
   -H "Content-Type: application/json" \\
   --data-binary @result.json`;
-const databaseExample=`curl -X PUT "${AZURE_BASE_URL}/database/records" \\
+const databaseExample=`curl -X POST "${AZURE_BASE_URL}/database/records" \\
   -H "Authorization: Bearer $ACADEMY_API_KEY" \\
   -H "Content-Type: application/json" \\
   -H "Idempotency-Key: project-42-student-1" \\
@@ -132,6 +132,7 @@ export default function ApiDocumentationPage(){
         <article><h3>Write a database record</h3><p>Records are isolated by entitlement. Supply an idempotency key when retrying writes.</p><CodeBlock title="cURL" code={databaseExample}/></article>
       </div>
       <div className="api-doc-note"><strong>Environment</strong><p><code>ACADEMY_API_KEY=bm_live_…</code><br/><code>ACADEMY_AZURE_BASE_URL={AZURE_BASE_URL}</code></p></div>
+      <div className="api-doc-note"><strong>Database CRUD</strong><p><code>POST /database/records</code> accepts <code>collection</code>, <code>key</code>, and <code>value</code>. You can also use <code>PUT /database/records/:key</code>, <code>GET /database/records/:key</code>, and <code>DELETE /database/records/:key</code>.</p></div>
     </section>
 
     <section id="examples" className="api-doc-section">

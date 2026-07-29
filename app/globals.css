@@ -649,6 +649,7 @@
 .accessed-key-value button:hover { color: #f0ce8b; background: rgba(214, 170, 98, .07); }
 .accessed-key-value button svg { width: 17px; height: 17px; }
 .accessed-key-value .api-key-copy { width:64px;padding:0 9px;border-left:1px solid rgba(170,194,212,.11);color:#d8b66f;font-size:9px;font-weight:800; }
+.accessed-key-value .api-key-rotate { width:64px;padding:0 9px;color:#d0d5d8;font-size:9px;font-weight:800; }
 .accessed-key-value button:disabled { opacity:.48;cursor:wait; }
 .api-key-error { margin:10px 0 0;padding:9px 11px;border:1px solid rgba(231,126,112,.25);border-radius:8px;color:#f1b3aa;background:rgba(135,42,32,.13);font-size:10px;line-height:1.45; }
 .accessed-key-meta { margin-top: 10px; display: flex; justify-content: space-between; color: #91a3ae; font-size: 11px; }

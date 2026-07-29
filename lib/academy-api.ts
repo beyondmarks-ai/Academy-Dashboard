@@ -213,6 +213,9 @@ export async function getApiAccess() {
 export async function revealAcademyCredential(){
   return(await apiRequest<ApiEnvelope<{apiKey:string}>>("/api/v1/academy-credential/reveal",{method:"POST"})).data.apiKey;
 }
+export async function rotateAcademyCredential(){
+  return(await apiRequest<ApiEnvelope<{apiKey:string;keyLastFour:string;rotatedAt:string}>>("/api/v1/academy-credential/rotate",{method:"POST",body:"{}"})).data;
+}
 
 export async function requestApiAccess(input:{capabilities:string[];deployments:string[];projectName:string;intendedUse:string;estimatedUsage:"starter"|"standard"|"advanced"|"custom";otherRequirements:string}) {
   return (await apiRequest<ApiEnvelope<AcademyApiAccessRequest>>("/api/v1/api-access/requests", {
